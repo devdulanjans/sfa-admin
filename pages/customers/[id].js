@@ -213,6 +213,32 @@ function CustomerDetailPage() {
     onError: (err) => toast.error(err.response?.data?.detail ?? 'Save failed'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => customerApi.delete(id),
+    onSuccess: () => {
+      toast.success('Customer deleted');
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['customer', id] });
+    },
+    onError: (err) => toast.error(err.response?.data?.detail ?? 'Failed to delete customer'),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: () => customerApi.restore(id),
+    onSuccess: () => {
+      toast.success('Customer restored');
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['customer', id] });
+    },
+    onError: (err) => toast.error(err.response?.data?.detail ?? 'Failed to restore customer'),
+  });
+
+  function confirmDelete() {
+    if (window.confirm(`Delete customer "${customer?.name}"? This can be restored later by a super admin.`)) {
+      deleteMutation.mutate();
+    }
+  }
+
   // Create portal account (only called on existing customers; new customers handled in onSuccess)
   async function handleCreatePortal() {
     if (!creds.username.trim()) { toast.error('Username is required'); return; }
@@ -329,8 +355,37 @@ function CustomerDetailPage() {
             <h2 className="text-base font-semibold text-gray-900">
               {isNew ? 'New Customer' : 'Edit Customer'}
             </h2>
-            {customer && <StatusBadge status={customer.status} />}
+            <div className="flex items-center gap-3">
+              {customer && <StatusBadge status={customer.status} />}
+              {!isNew && customer && user?.role === 'SUPER_ADMIN' && (
+                customer.deletedAt ? (
+                  <button
+                    type="button"
+                    onClick={() => restoreMutation.mutate()}
+                    disabled={restoreMutation.isPending}
+                    className="text-xs px-2 py-1 rounded font-medium bg-green-50 text-green-700 hover:bg-green-100"
+                  >
+                    {restoreMutation.isPending ? 'Restoring…' : 'Restore Customer'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={confirmDelete}
+                    disabled={deleteMutation.isPending}
+                    className="text-xs px-2 py-1 rounded font-medium bg-red-50 text-red-700 hover:bg-red-100"
+                  >
+                    {deleteMutation.isPending ? 'Deleting…' : 'Delete Customer'}
+                  </button>
+                )
+              )}
+            </div>
           </div>
+
+          {customer?.deletedAt && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+              This customer was deleted on {new Date(customer.deletedAt).toLocaleString()}. Restore it to make it active again.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -362,6 +417,12 @@ function CustomerDetailPage() {
               <div>
                 <label className="label">Location</label>
                 <input placeholder="e.g. Colombo" {...register('location')} className="input" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Place of Supplier</label>
+                <input placeholder="e.g. KEELLS - Anuradhapura" {...register('placeOfSupplier')} className="input" />
               </div>
             </div>
             <div>

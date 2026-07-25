@@ -5,31 +5,81 @@ import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import ExportButton from '../../components/ExportButton';
-import { withAuth } from '../../lib/auth';
+import { withAuth, useAuth } from '../../lib/auth';
 import { customerApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 const COLUMNS = [
-  { key: 'customerCode', label: 'Code',     width: 100 },
-  { key: 'name',         label: 'Name' },
-  { key: 'phone',        label: 'Phone' },
-  { key: 'location',     label: 'Location', render: (v) => v ?? '—' },
-  { key: 'categoryName', label: 'Category', render: (v) => v ?? '—' },
-  { key: 'taxType',      label: 'Tax Type' },
-  { key: 'status',       label: 'Status',   render: (v) => <StatusBadge status={v} /> },
-  { key: 'actions',      label: '',         width: 80,
-    render: (_, row) => <RowActions id={row.id} /> },
+  { key: 'customerCode',     label: 'Code',     width: 100 },
+  { key: 'name',             label: 'Name' },
+  { key: 'phone',            label: 'Phone' },
+  { key: 'location',         label: 'Location', render: (v) => v ?? '—' },
+  { key: 'placeOfSupplier',  label: 'Place of Supplier', render: (v) => v ?? '—' },
+  { key: 'categoryName',     label: 'Category', render: (v) => v ?? '—' },
+  { key: 'taxType',          label: 'Tax Type' },
+  { key: 'status',           label: 'Status',   render: (v) => <StatusBadge status={v} /> },
+  { key: 'actions',          label: '',         width: 140,
+    render: (_, row) => <RowActions row={row} /> },
 ];
 
-function RowActions({ id }) {
+function RowActions({ row }) {
   const router = useRouter();
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'SUPER_ADMIN';
+
+  const deleteMutation = useMutation({
+    mutationFn: () => customerApi.delete(row.id),
+    onSuccess: () => {
+      toast.success('Customer deleted');
+      qc.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (err) => toast.error(err.response?.data?.detail ?? 'Failed to delete customer'),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: () => customerApi.restore(row.id),
+    onSuccess: () => {
+      toast.success('Customer restored');
+      qc.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (err) => toast.error(err.response?.data?.detail ?? 'Failed to restore customer'),
+  });
+
+  function confirmDelete() {
+    if (window.confirm(`Delete customer "${row.name}"? This can be restored later by a super admin.`)) {
+      deleteMutation.mutate();
+    }
+  }
+
   return (
-    <button
-      onClick={() => router.push(`/customers/${id}`)}
-      className="text-blue-600 text-xs font-medium hover:text-blue-800"
-    >
-      Edit →
-    </button>
+    <div className="flex items-center justify-end gap-2">
+      <button
+        onClick={() => router.push(`/customers/${row.id}`)}
+        className="text-blue-600 text-xs font-medium hover:text-blue-800"
+      >
+        Edit →
+      </button>
+      {isAdmin && (
+        row.deletedAt ? (
+          <button
+            onClick={() => restoreMutation.mutate()}
+            disabled={restoreMutation.isPending}
+            className="text-xs px-2 py-1 rounded font-medium bg-green-50 text-green-700 hover:bg-green-100"
+          >
+            Restore
+          </button>
+        ) : (
+          <button
+            onClick={confirmDelete}
+            disabled={deleteMutation.isPending}
+            className="text-xs px-2 py-1 rounded font-medium bg-red-50 text-red-700 hover:bg-red-100"
+          >
+            Delete
+          </button>
+        )
+      )}
+    </div>
   );
 }
 
@@ -159,13 +209,16 @@ function ImportCustomersModal({ onClose, onImported }) {
 function CustomersPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'SUPER_ADMIN';
   const [page, setPage]     = useState(0);
   const [search, setSearch] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const [includeDeleted, setIncludeDeleted] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', page, search],
-    queryFn:  () => customerApi.list({ page, size: 20, search }).then(r => r.data),
+    queryKey: ['customers', page, search, includeDeleted],
+    queryFn:  () => customerApi.list({ page, size: 20, search, includeDeleted }).then(r => r.data),
     keepPreviousData: true,
   });
 
@@ -181,6 +234,17 @@ function CustomersPage() {
         onSearch={setSearch}
         actions={
           <>
+            {isAdmin && (
+              <label className="flex items-center gap-1.5 text-xs text-gray-600 font-medium px-1">
+                <input
+                  type="checkbox"
+                  checked={includeDeleted}
+                  onChange={(e) => { setIncludeDeleted(e.target.checked); setPage(0); }}
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
+                />
+                Show deleted
+              </label>
+            )}
             <ExportButton
               filename="customers"
               exportFn={(format) => customerApi.export(format, { search })}
