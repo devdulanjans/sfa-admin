@@ -5,7 +5,7 @@ import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import { withAuth } from '../../lib/auth';
-import { userApi, distributorApi, customerApi } from '../../lib/api';
+import { userApi, distributorApi, customerApi, customerGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 function UsersPage() {
@@ -15,10 +15,22 @@ function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
 
+  // ── Recovery accounts (platformowner / superadmin) — hidden from the list
+  // above, view-only, revealed only with the correct recovery key ──────────
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryKeyInput, setRecoveryKeyInput] = useState('');
+  const [recoveryAccounts, setRecoveryAccounts] = useState(null);
+  const recoveryMutation = useMutation({
+    mutationFn: (key) => userApi.recovery(key).then(r => r.data),
+    onSuccess: (data) => setRecoveryAccounts(data),
+    onError: (err) => toast.error(err.response?.data?.detail ?? 'Invalid recovery key'),
+  });
+
   // ── Create form ──────────────────────────────────────────────────────────
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm();
   const selectedRoleId       = watch('roleId');
   const selectedCustomerIds  = watch('customerIds') || [];
+  const selectedGroupIds     = watch('customerGroupIds') || [];
 
   // ── Edit form ────────────────────────────────────────────────────────────
   const {
@@ -30,6 +42,7 @@ function UsersPage() {
   } = useForm();
   const eSelectedRoleId      = eWatch('roleId');
   const eSelectedCustomerIds = eWatch('customerIds') || [];
+  const eSelectedGroupIds    = eWatch('customerGroupIds') || [];
 
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
@@ -62,8 +75,15 @@ function UsersPage() {
     enabled: showForm || !!editUser,
   });
 
-  const allDistributors = distributorsData?.content?.filter(d => d.status === 'ACTIVE') ?? [];
-  const allCustomers    = customersData?.content?.filter(c => c.status === 'ACTIVE') ?? [];
+  const { data: customerGroupsData } = useQuery({
+    queryKey: ['customer-groups-all'],
+    queryFn: () => customerGroupApi.list({ size: 200 }).then(r => r.data),
+    enabled: showForm || !!editUser,
+  });
+
+  const allDistributors  = distributorsData?.content?.filter(d => d.status === 'ACTIVE') ?? [];
+  const allCustomers     = customersData?.content?.filter(c => c.status === 'ACTIVE') ?? [];
+  const allCustomerGroups = customerGroupsData?.content ?? [];
 
   // ── Role helpers (create form) ───────────────────────────────────────────
   const selectedRole   = (roles || []).find(r => r.id === selectedRoleId);
@@ -75,6 +95,10 @@ function UsersPage() {
     : (selectedCustomerIds ? [selectedCustomerIds] : []);
   const hasCustomersSelected = checkedCustomerIds.length > 0;
 
+  const checkedGroupIds = Array.isArray(selectedGroupIds)
+    ? selectedGroupIds.filter(Boolean)
+    : (selectedGroupIds ? [selectedGroupIds] : []);
+
   // ── Role helpers (edit form) ─────────────────────────────────────────────
   const eSelectedRole   = (roles || []).find(r => r.id === eSelectedRoleId);
   const eIsSalesRole    = eSelectedRole?.name?.toUpperCase().includes('SALES');
@@ -84,6 +108,10 @@ function UsersPage() {
     ? eSelectedCustomerIds.filter(Boolean)
     : (eSelectedCustomerIds ? [eSelectedCustomerIds] : []);
   const eHasCustomersSelected = eCheckedCustomerIds.length > 0;
+
+  const eCheckedGroupIds = Array.isArray(eSelectedGroupIds)
+    ? eSelectedGroupIds.filter(Boolean)
+    : (eSelectedGroupIds ? [eSelectedGroupIds] : []);
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const createMutation = useMutation({
@@ -126,6 +154,9 @@ function UsersPage() {
       customerIds: isSalesRep && data.customerIds
         ? (Array.isArray(data.customerIds) ? data.customerIds.filter(Boolean) : [data.customerIds].filter(Boolean))
         : [],
+      customerGroupIds: isSalesRep && data.customerGroupIds
+        ? (Array.isArray(data.customerGroupIds) ? data.customerGroupIds.filter(Boolean) : [data.customerGroupIds].filter(Boolean))
+        : [],
     };
     createMutation.mutate(payload);
   }
@@ -141,6 +172,9 @@ function UsersPage() {
       customerIds: eIsSalesRep && data.customerIds
         ? (Array.isArray(data.customerIds) ? data.customerIds : [data.customerIds]).filter(Boolean)
         : [],
+      customerGroupIds: eIsSalesRep && data.customerGroupIds
+        ? (Array.isArray(data.customerGroupIds) ? data.customerGroupIds : [data.customerGroupIds]).filter(Boolean)
+        : [],
       password: data.password || null,
     };
     updateMutation.mutate({ id: editUser.id, body: payload });
@@ -152,9 +186,10 @@ function UsersPage() {
       fullName:       user.fullName,
       email:          user.email,
       roleId:         user.roleId,
-      distributorIds: user.distributors?.map(d => d.id) ?? [],
-      customerIds:    user.assignedCustomerIds ?? [],
-      password:       '',
+      distributorIds:   user.distributors?.map(d => d.id) ?? [],
+      customerIds:      user.assignedCustomerIds ?? [],
+      customerGroupIds: user.customerGroupIds ?? [],
+      password:         '',
     });
   }
 
@@ -188,11 +223,13 @@ function UsersPage() {
       label: 'Customer Access',
       render: (v, row) => {
         if (row.roleName !== 'SALES_REP') return <span className="text-gray-400 text-xs">—</span>;
-        return v ? (
-          <span className="text-xs bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded font-medium">All customers</span>
-        ) : (
+        if (v) return <span className="text-xs bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded font-medium">All customers</span>;
+        const parts = [];
+        if (row.assignedCustomerCount > 0) parts.push(`${row.assignedCustomerCount} customer${row.assignedCustomerCount !== 1 ? 's' : ''}`);
+        if (row.customerGroupCount > 0) parts.push(`${row.customerGroupCount} group${row.customerGroupCount !== 1 ? 's' : ''}`);
+        return (
           <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">
-            {row.assignedCustomerCount} assigned
+            {parts.join(' + ')}
           </span>
         );
       },
@@ -308,6 +345,34 @@ function UsersPage() {
     );
   }
 
+  function GroupCheckboxes({ reg, list, checkedCount }) {
+    return (
+      <div>
+        <p className="text-xs text-gray-500 mb-2">
+          Every customer in a selected group is added to this rep's access, on top of any customers selected above.
+          {checkedCount > 0 && <strong> {checkedCount} group{checkedCount !== 1 ? 's' : ''} selected.</strong>}
+        </p>
+        {list.length === 0 ? (
+          <p className="text-xs text-gray-400">No customer groups available.</p>
+        ) : (
+          <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-44 overflow-y-auto">
+            {list.map(g => (
+              <label key={g.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                <input type="checkbox" value={g.id} {...reg} className="rounded border-gray-300 text-violet-600" />
+                <div>
+                  <span className="text-sm font-medium text-gray-900">{g.name}</span>
+                  {g.memberCount != null && (
+                    <span className="ml-2 text-xs text-gray-500">{g.memberCount} customer{g.memberCount !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Layout title="Users">
@@ -348,6 +413,56 @@ function UsersPage() {
           </button>
         }
       />
+
+      {/* ── Recovery accounts (platformowner / superadmin) ───────────────────
+          Not part of the normal Users list — view-only, key-gated. */}
+      <div className="mt-4">
+        <button
+          className="text-xs text-gray-400 hover:text-gray-600 underline"
+          onClick={() => setShowRecovery(v => !v)}
+        >
+          Recovery accounts
+        </button>
+        {showRecovery && (
+          <div className="mt-2 card p-4 max-w-lg">
+            <p className="text-xs text-gray-500 mb-3">
+              View-only. These accounts are not editable here — enter the recovery key to reveal them.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                className="input flex-1"
+                placeholder="Recovery key"
+                value={recoveryKeyInput}
+                onChange={e => setRecoveryKeyInput(e.target.value)}
+              />
+              <button
+                className="btn-secondary"
+                disabled={!recoveryKeyInput || recoveryMutation.isPending}
+                onClick={() => recoveryMutation.mutate(recoveryKeyInput)}
+              >
+                {recoveryMutation.isPending ? 'Checking…' : 'View'}
+              </button>
+            </div>
+            {recoveryAccounts && (
+              <div className="mt-3 border border-gray-200 rounded-lg divide-y divide-gray-100">
+                {recoveryAccounts.map(u => (
+                  <div key={u.id} className="px-3 py-2 flex items-center justify-between text-sm">
+                    <div>
+                      <span className="font-medium">{u.username}</span>
+                      <span className="ml-2 text-xs text-gray-500">{u.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="badge-blue text-xs">{u.roleName}</span>
+                      <StatusBadge status={u.status} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Create modal ───────────────────────────────────────────────────── */}
       {showForm && (
@@ -411,6 +526,17 @@ function UsersPage() {
                     list={allCustomers}
                     hasSelected={hasCustomersSelected}
                     checkedCount={checkedCustomerIds.length}
+                  />
+                </div>
+              )}
+
+              {isSalesRep && (
+                <div>
+                  <label className="label">Assign Customer Groups</label>
+                  <GroupCheckboxes
+                    reg={register('customerGroupIds')}
+                    list={allCustomerGroups}
+                    checkedCount={checkedGroupIds.length}
                   />
                 </div>
               )}
@@ -493,6 +619,17 @@ function UsersPage() {
                     list={allCustomers}
                     hasSelected={eHasCustomersSelected}
                     checkedCount={eCheckedCustomerIds.length}
+                  />
+                </div>
+              )}
+
+              {eIsSalesRep && (
+                <div>
+                  <label className="label">Assign Customer Groups</label>
+                  <GroupCheckboxes
+                    reg={eReg('customerGroupIds')}
+                    list={allCustomerGroups}
+                    checkedCount={eCheckedGroupIds.length}
                   />
                 </div>
               )}

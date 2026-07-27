@@ -5,7 +5,7 @@ import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import { withAuth } from '../../lib/auth';
-import { pricingApi, productApi, customerApi } from '../../lib/api';
+import { pricingApi, productApi, customerApi, customerGroupApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
 
@@ -27,6 +27,8 @@ const FIELD_LABELS = {
   'Applies To':     'Applies To',
   'Free Product':   'Free Product',
   'Customer':       'Customer',
+  'Customer Group': 'Customer Group',
+  'Product Group':  'Product Group',
 };
 
 // ── History modal ─────────────────────────────────────────────────────────────
@@ -153,10 +155,19 @@ function PromotionsPage() {
   const [freeSearch,   setFreeSearch]   = useState('');
   const [freeDropdown, setFreeDropdown] = useState(false);
 
-  // Customer single-select (blank = all customers)
+  // Customer target: 'all' | 'customer' | 'group'
+  const [customerTarget,    setCustomerTarget]    = useState('all');
   const [selectedCustomer,  setSelectedCustomer]  = useState(null);
   const [customerSearch,    setCustomerSearch]    = useState('');
   const [customerDropdown,  setCustomerDropdown]  = useState(false);
+  const [selectedCustomerGroup, setSelectedCustomerGroup] = useState(null);
+  const [customerGroupSearch,   setCustomerGroupSearch]   = useState('');
+  const [customerGroupDropdown, setCustomerGroupDropdown] = useState(false);
+
+  // Product group — additive to the explicit products multi-select above
+  const [selectedProductGroup, setSelectedProductGroup] = useState(null);
+  const [productGroupSearch,   setProductGroupSearch]   = useState('');
+  const [productGroupDropdown, setProductGroupDropdown] = useState(false);
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
     defaultValues: { type: 'PERCENTAGE', isActive: true },
@@ -188,6 +199,22 @@ function PromotionsPage() {
   });
   const allCustomers = customersData?.content || [];
 
+  const { data: customerGroupsData } = useQuery({
+    queryKey: ['customer-groups-picker'],
+    queryFn: () => customerGroupApi.list({ size: 200 }).then(r => r.data),
+    enabled: showForm,
+    staleTime: 60_000,
+  });
+  const allCustomerGroups = customerGroupsData?.content || [];
+
+  const { data: productGroupsData } = useQuery({
+    queryKey: ['product-groups-picker'],
+    queryFn: () => productGroupApi.list({ size: 200 }).then(r => r.data),
+    enabled: showForm,
+    staleTime: 60_000,
+  });
+  const allProductGroups = productGroupsData?.content || [];
+
   // ── Filtered product options ─────────────────────────────────────────────────
 
   const filteredAppliesTo = (productSearch.trim()
@@ -211,6 +238,16 @@ function PromotionsPage() {
     : allCustomers
   ).slice(0, 30);
 
+  const filteredCustomerGroups = (customerGroupSearch.trim()
+    ? allCustomerGroups.filter(g => g.name?.toLowerCase().includes(customerGroupSearch.toLowerCase()))
+    : allCustomerGroups
+  ).slice(0, 30);
+
+  const filteredProductGroups = (productGroupSearch.trim()
+    ? allProductGroups.filter(g => g.name?.toLowerCase().includes(productGroupSearch.toLowerCase()))
+    : allProductGroups
+  ).slice(0, 30);
+
   // ── Form helpers ─────────────────────────────────────────────────────────────
 
   const addAppliesTo    = (p) => { setSelectedProducts(prev => [...prev, p]); setProductSearch(''); setProductDropdown(false); };
@@ -225,9 +262,16 @@ function PromotionsPage() {
     setFreeProduct(null);
     setFreeSearch('');
     setFreeDropdown(false);
+    setCustomerTarget('all');
     setSelectedCustomer(null);
     setCustomerSearch('');
     setCustomerDropdown(false);
+    setSelectedCustomerGroup(null);
+    setCustomerGroupSearch('');
+    setCustomerGroupDropdown(false);
+    setSelectedProductGroup(null);
+    setProductGroupSearch('');
+    setProductGroupDropdown(false);
     reset({ type: 'PERCENTAGE', isActive: true });
   }, [reset]);
 
@@ -235,7 +279,20 @@ function PromotionsPage() {
     setEditingPromo(promo);
     setSelectedProducts(promo.products || []);
     setFreeProduct(promo.freeProduct || null);
-    setSelectedCustomer(promo.customer || null);
+    setSelectedProductGroup(promo.productGroup || null);
+    if (promo.customerGroup) {
+      setCustomerTarget('group');
+      setSelectedCustomerGroup(promo.customerGroup);
+      setSelectedCustomer(null);
+    } else if (promo.customer) {
+      setCustomerTarget('customer');
+      setSelectedCustomer(promo.customer);
+      setSelectedCustomerGroup(null);
+    } else {
+      setCustomerTarget('all');
+      setSelectedCustomer(null);
+      setSelectedCustomerGroup(null);
+    }
     reset({
       name:          promo.name,
       type:          promo.type,
@@ -266,13 +323,18 @@ function PromotionsPage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = (formData) => {
-    if (!selectedProducts.length) { toast.error('Select at least one product this promotion applies to'); return; }
+    if (!selectedProducts.length && !selectedProductGroup) {
+      toast.error('Select at least one product (directly, or via a product group) this promotion applies to');
+      return;
+    }
     if (isFreeProduct && !freeProduct) { toast.error('Select the free product to give away'); return; }
 
     const body = {
       ...formData,
-      customerId:    selectedCustomer?.id || undefined,
-      productIds:    selectedProducts.map(p => p.id),
+      customerId:      customerTarget === 'customer' ? selectedCustomer?.id || undefined : undefined,
+      customerGroupId: customerTarget === 'group'    ? selectedCustomerGroup?.id || undefined : undefined,
+      productIds:      selectedProducts.map(p => p.id),
+      productGroupId:  selectedProductGroup?.id || undefined,
       freeProductId: isFreeProduct ? freeProduct.id : undefined,
       maxFreeCount:  isFreeProduct ? (formData.maxFreeCount || 1) : undefined,
       minOrderQty:   isFreeProduct ? (formData.minOrderQty  || 1) : undefined,
@@ -294,17 +356,29 @@ function PromotionsPage() {
       label: 'Applies To',
       render: (_, r) => {
         const prods = r.products || [];
-        if (!prods.length) return <span className="text-gray-400">—</span>;
-        if (prods.length === 1) return prods[0].name;
+        const groupBadge = r.productGroup && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 uppercase tracking-wide mr-1">
+            Group: {r.productGroup.name}
+          </span>
+        );
+        if (!prods.length) return groupBadge || <span className="text-gray-400">—</span>;
+        if (prods.length === 1) return <span>{groupBadge}{prods[0].name}</span>;
         return (
           <span title={prods.map(p => p.name).join(', ')}>
+            {groupBadge}
             {prods[0].name}
             <span className="ml-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-full px-1.5 py-0.5">+{prods.length - 1}</span>
           </span>
         );
       },
     },
-    { key: 'customer', label: 'Customer', render: (_, r) => r.customer?.name ?? 'All' },
+    {
+      key: 'customer',
+      label: 'Customer',
+      render: (_, r) => r.customerGroup
+        ? <span className="text-purple-700 font-medium">Group: {r.customerGroup.name}</span>
+        : (r.customer?.name ?? 'All'),
+    },
     {
       key: 'type',
       label: 'Type',
@@ -431,40 +505,135 @@ function PromotionsPage() {
                 </div>
               </div>
 
-              {/* Customer */}
+              {/* Product group — additive to the explicit list above */}
               <div>
-                <label className="label">Customer <span className="text-gray-400 font-normal ml-1">(leave blank = all customers)</span></label>
-                {selectedCustomer ? (
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg border border-blue-200 bg-blue-50">
-                    <span className="flex-1 text-sm font-medium text-blue-800">{selectedCustomer.name}</span>
-                    {selectedCustomer.customerCode && <span className="text-xs text-blue-600">{selectedCustomer.customerCode}</span>}
-                    <button type="button" onClick={() => setSelectedCustomer(null)} className="text-blue-400 hover:text-blue-700 text-sm ml-1">×</button>
+                <label className="label">
+                  Also Apply To Product Group
+                  <span className="text-gray-400 font-normal ml-1">(optional — every current member is included too)</span>
+                </label>
+                {selectedProductGroup ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg border border-purple-200 bg-purple-50">
+                    <span className="flex-1 text-sm font-medium text-purple-800">{selectedProductGroup.name}</span>
+                    <span className="text-xs text-purple-600">{selectedProductGroup.memberCount} products</span>
+                    <button type="button" onClick={() => setSelectedProductGroup(null)} className="text-purple-400 hover:text-purple-700 text-sm ml-1">×</button>
                   </div>
                 ) : (
                   <div className="relative">
                     <input
-                      value={customerSearch}
-                      onChange={e => { setCustomerSearch(e.target.value); setCustomerDropdown(true); }}
-                      onFocus={() => setCustomerDropdown(true)}
-                      onBlur={() => setTimeout(() => setCustomerDropdown(false), 150)}
-                      placeholder="Search customers… (leave blank for all)"
+                      value={productGroupSearch}
+                      onChange={e => { setProductGroupSearch(e.target.value); setProductGroupDropdown(true); }}
+                      onFocus={() => setProductGroupDropdown(true)}
+                      onBlur={() => setTimeout(() => setProductGroupDropdown(false), 150)}
+                      placeholder="Search product groups…"
                       className="input"
                     />
-                    {customerDropdown && (
+                    {productGroupDropdown && (
                       <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {filteredCustomers.length === 0
-                          ? <p className="px-3 py-4 text-sm text-gray-400 text-center">{allCustomers.length === 0 ? 'Loading…' : 'No matching customers'}</p>
-                          : filteredCustomers.map(c => (
-                              <button key={c.id} type="button"
-                                onMouseDown={() => { setSelectedCustomer(c); setCustomerSearch(''); setCustomerDropdown(false); }}
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center justify-between border-b border-gray-50 last:border-0">
-                                <span className="font-medium text-gray-800">{c.name}</span>
-                                {c.customerCode && <span className="text-xs text-gray-400">{c.customerCode}</span>}
+                        {filteredProductGroups.length === 0
+                          ? <p className="px-3 py-4 text-sm text-gray-400 text-center">{allProductGroups.length === 0 ? 'No product groups yet' : 'No matching groups'}</p>
+                          : filteredProductGroups.map(g => (
+                              <button key={g.id} type="button"
+                                onMouseDown={() => { setSelectedProductGroup(g); setProductGroupSearch(''); setProductGroupDropdown(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 flex items-center justify-between border-b border-gray-50 last:border-0">
+                                <span className="font-medium text-gray-800">{g.name}</span>
+                                <span className="text-xs text-gray-400">{g.memberCount} products</span>
                               </button>
                             ))}
                       </div>
                     )}
                   </div>
+                )}
+              </div>
+
+              {/* Customer */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Customer</label>
+                  <div className="flex gap-3 text-xs">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={customerTarget === 'all'}
+                        onChange={() => setCustomerTarget('all')} />
+                      All Customers
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={customerTarget === 'customer'}
+                        onChange={() => setCustomerTarget('customer')} />
+                      Specific Customer
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={customerTarget === 'group'}
+                        onChange={() => setCustomerTarget('group')} />
+                      Customer Group
+                    </label>
+                  </div>
+                </div>
+                {customerTarget === 'customer' && (
+                  selectedCustomer ? (
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg border border-blue-200 bg-blue-50">
+                      <span className="flex-1 text-sm font-medium text-blue-800">{selectedCustomer.name}</span>
+                      {selectedCustomer.customerCode && <span className="text-xs text-blue-600">{selectedCustomer.customerCode}</span>}
+                      <button type="button" onClick={() => setSelectedCustomer(null)} className="text-blue-400 hover:text-blue-700 text-sm ml-1">×</button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        value={customerSearch}
+                        onChange={e => { setCustomerSearch(e.target.value); setCustomerDropdown(true); }}
+                        onFocus={() => setCustomerDropdown(true)}
+                        onBlur={() => setTimeout(() => setCustomerDropdown(false), 150)}
+                        placeholder="Search customers…"
+                        className="input"
+                      />
+                      {customerDropdown && (
+                        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {filteredCustomers.length === 0
+                            ? <p className="px-3 py-4 text-sm text-gray-400 text-center">{allCustomers.length === 0 ? 'Loading…' : 'No matching customers'}</p>
+                            : filteredCustomers.map(c => (
+                                <button key={c.id} type="button"
+                                  onMouseDown={() => { setSelectedCustomer(c); setCustomerSearch(''); setCustomerDropdown(false); }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center justify-between border-b border-gray-50 last:border-0">
+                                  <span className="font-medium text-gray-800">{c.name}</span>
+                                  {c.customerCode && <span className="text-xs text-gray-400">{c.customerCode}</span>}
+                                </button>
+                              ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                )}
+                {customerTarget === 'group' && (
+                  selectedCustomerGroup ? (
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg border border-purple-200 bg-purple-50">
+                      <span className="flex-1 text-sm font-medium text-purple-800">{selectedCustomerGroup.name}</span>
+                      <span className="text-xs text-purple-600">{selectedCustomerGroup.memberCount} customers</span>
+                      <button type="button" onClick={() => setSelectedCustomerGroup(null)} className="text-purple-400 hover:text-purple-700 text-sm ml-1">×</button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        value={customerGroupSearch}
+                        onChange={e => { setCustomerGroupSearch(e.target.value); setCustomerGroupDropdown(true); }}
+                        onFocus={() => setCustomerGroupDropdown(true)}
+                        onBlur={() => setTimeout(() => setCustomerGroupDropdown(false), 150)}
+                        placeholder="Search customer groups…"
+                        className="input"
+                      />
+                      {customerGroupDropdown && (
+                        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {filteredCustomerGroups.length === 0
+                            ? <p className="px-3 py-4 text-sm text-gray-400 text-center">{allCustomerGroups.length === 0 ? 'No customer groups yet' : 'No matching groups'}</p>
+                            : filteredCustomerGroups.map(g => (
+                                <button key={g.id} type="button"
+                                  onMouseDown={() => { setSelectedCustomerGroup(g); setCustomerGroupSearch(''); setCustomerGroupDropdown(false); }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 flex items-center justify-between border-b border-gray-50 last:border-0">
+                                  <span className="font-medium text-gray-800">{g.name}</span>
+                                  <span className="text-xs text-gray-400">{g.memberCount} customers</span>
+                                </button>
+                              ))}
+                        </div>
+                      )}
+                    </div>
+                  )
                 )}
               </div>
 

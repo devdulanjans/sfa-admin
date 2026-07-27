@@ -48,4 +48,22 @@
   .badge-red    { @apply inline-flex items-center rounded-full bg-red-100   px-2.5 py-0.5 text-xs font-medium text-red-800;   }
   .badge-gray   { @apply inline-flex items-center rounded-full bg-gray-100  px-2.5 py-0.5 text-xs font-medium text-gray-600;  }
   .badge-cyan   { @apply inline-flex items-center rounded-full bg-cyan-100  px-2.5 py-0.5 text-xs font-medium text-cyan-800;  }
+
+  /* Compact filter-panel input, used by the Orders/Invoices search & date filter panels */
+  .input-base {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    color: #111827;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input-base:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+  }
+  .input-base::placeholder { color: #9ca3af; }
 }

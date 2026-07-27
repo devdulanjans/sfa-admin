@@ -1,4 +1,5 @@
 import { useRouter } from 'next/router';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '../../components/Layout';
 import StatusBadge from '../../components/StatusBadge';
@@ -12,6 +13,25 @@ function OrderDetailPage() {
   const { id } = router.query;
   const qc = useQueryClient();
   const { hasRole } = useAuth();
+  const [exporting, setExporting] = useState(false);
+
+  async function exportDetails() {
+    setExporting(true);
+    try {
+      const { data } = await orderApi.exportDetails(id);
+      const url = URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `order-${order?.orderNumber || id}-details.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Exported order details');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', id],
@@ -93,27 +113,27 @@ function OrderDetailPage() {
                 <tr key={item.id} className="text-sm">
                   <td className="px-4 py-2.5 font-medium">{item.product?.name}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{Number(item.quantity).toLocaleString()}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">${formatAmount(item.unitPrice)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">LKR {formatAmount(item.unitPrice)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-amber-600">
                     {item.discountPct > 0 ? `${item.discountPct}%` : '—'}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-500">${formatAmount(item.taxAmount)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-medium">${formatAmount(item.lineTotal)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-500">LKR {formatAmount(item.taxAmount)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-medium">LKR {formatAmount(item.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="border-t-2 border-gray-200 bg-gray-50">
               <tr className="text-sm font-semibold">
                 <td colSpan={5} className="px-4 py-2.5 text-right text-gray-600">Subtotal</td>
-                <td className="px-4 py-2.5 text-right tabular-nums">${formatAmount(order.subtotal)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">LKR {formatAmount(order.subtotal)}</td>
               </tr>
               <tr className="text-sm font-semibold">
                 <td colSpan={5} className="px-4 py-2.5 text-right text-gray-600">Tax Total</td>
-                <td className="px-4 py-2.5 text-right tabular-nums">${formatAmount(order.taxAmount)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">LKR {formatAmount(order.taxAmount)}</td>
               </tr>
               <tr className="text-base font-bold text-blue-700">
                 <td colSpan={5} className="px-4 py-3 text-right">Total</td>
-                <td className="px-4 py-3 text-right tabular-nums">${formatAmount(order.total)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">LKR {formatAmount(order.total)}</td>
               </tr>
             </tfoot>
           </table>
@@ -136,6 +156,9 @@ function OrderDetailPage() {
               {cancelMutation.isPending ? 'Cancelling…' : 'Cancel Order'}
             </button>
           )}
+          <button className="btn-secondary" onClick={exportDetails} disabled={exporting}>
+            {exporting ? 'Exporting…' : '⬇ Export Excel (full detail)'}
+          </button>
           <button className="btn-secondary" onClick={() => router.back()}>Back</button>
         </div>
       </div>

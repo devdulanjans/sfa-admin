@@ -1,19 +1,94 @@
 import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import StatusBadge from '../../components/StatusBadge';
 import { withAuth } from '../../lib/auth';
-import { productApi, categoryApi, unitApi } from '../../lib/api';
+import { productApi, categoryApi, unitApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
+
+// ── Checkbox list: search + select-all + scrollable grid of checkboxes ─────────
+function GroupCheckboxList({ allItems, selectedIds, setSelectedIds, getLabel, getSubLabel, searchPlaceholder }) {
+  const [search, setSearch] = useState('');
+
+  const filtered = search.trim()
+    ? allItems.filter(i =>
+        getLabel(i)?.toLowerCase().includes(search.toLowerCase()) ||
+        getSubLabel?.(i)?.toLowerCase().includes(search.toLowerCase()))
+    : allItems;
+
+  const allSelected = filtered.length > 0 && filtered.every(i => selectedIds.includes(i.id));
+
+  function toggleOne(id) {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelectedIds(prev => prev.filter(id => !filtered.find(i => i.id === id)));
+    } else {
+      setSelectedIds(prev => [...prev, ...filtered.filter(i => !prev.includes(i.id)).map(i => i.id)]);
+    }
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-gray-200 bg-gray-50">
+        <input
+          type="text"
+          placeholder={searchPlaceholder}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="input max-w-xs"
+        />
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer shrink-0">
+          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
+          {allSelected ? 'Deselect all' : 'Select all'} ({filtered.length})
+        </label>
+      </div>
+      <div className="max-h-64 overflow-y-auto p-2">
+        {filtered.length === 0 ? (
+          <p className="text-center text-sm text-gray-400 py-8">
+            {allItems.length === 0 ? 'No product groups yet' : 'No matches'}
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
+            {filtered.map(item => {
+              const checked = selectedIds.includes(item.id);
+              return (
+                <label
+                  key={item.id}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 ${checked ? 'bg-blue-50' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleOne(item.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{getLabel(item)}</p>
+                    {getSubLabel && <p className="text-xs text-gray-500 truncate">{getSubLabel(item)}</p>}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function ProductDetailPage() {
   const router = useRouter();
   const { id } = router.query;
   const qc = useQueryClient();
   const isNew = id === 'new';
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
+  const [initialGroupIds, setInitialGroupIds] = useState([]);
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', id],
@@ -30,6 +105,25 @@ function ProductDetailPage() {
     queryKey: ['units'],
     queryFn:  () => unitApi.list().then(r => r.data),
   });
+
+  const { data: allGroupsData } = useQuery({
+    queryKey: ['product-groups-picker'],
+    queryFn: () => productGroupApi.list({ size: 200 }).then(r => r.data),
+  });
+  const allGroups = allGroupsData?.content ?? [];
+
+  useEffect(() => {
+    if (!isNew && id) {
+      productGroupApi.byProduct(id).then(r => {
+        const ids = r.data.map(g => g.id);
+        setSelectedGroupIds(ids);
+        setInitialGroupIds(ids);
+      });
+    }
+  }, [id, isNew]);
+
+  const groupsDirty = selectedGroupIds.length !== initialGroupIds.length
+    || selectedGroupIds.some(gid => !initialGroupIds.includes(gid));
 
   const { register, handleSubmit, reset, watch, formState: { errors, isDirty } } = useForm({
     defaultValues: { taxRate: '15.00', maxDiscountAmount: '0.00' },
@@ -59,12 +153,17 @@ function ProductDetailPage() {
   const marginPct = hasMargin ? (profitPerUnit / defaultPrice) * 100 : null;
 
   const mutation = useMutation({
-    mutationFn: (body) => isNew
-      ? productApi.create(body)
-      : productApi.update(id, body),
+    mutationFn: async (body) => {
+      const res = isNew
+        ? await productApi.create(body)
+        : await productApi.update(id, body);
+      await productGroupApi.setForProduct(res.data.id, selectedGroupIds);
+      return res;
+    },
     onSuccess: (res) => {
       toast.success(isNew ? 'Product created' : 'Product updated');
       qc.invalidateQueries({ queryKey: ['products'] });
+      qc.invalidateQueries({ queryKey: ['product-groups'] });
       if (isNew) router.push(`/products/${res.data.id}`);
       else qc.invalidateQueries({ queryKey: ['product', id] });
     },
@@ -81,7 +180,7 @@ function ProductDetailPage() {
 
   return (
     <Layout title={isNew ? 'New Product' : product?.name ?? 'Product'}>
-      <div className="card p-6 max-w-2xl">
+      <div className="card p-6 w-full">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-gray-900">
             {isNew ? 'New Product' : 'Edit Product'}
@@ -138,6 +237,23 @@ function ProductDetailPage() {
             </div>
           </div>
 
+          <div>
+            <label className="label">
+              Product Groups <span className="text-gray-400 font-normal ml-1">({selectedGroupIds.length} selected)</span>
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Adding this product to a group applies any batch price or promotion rule targeting that group, and makes it visible to every customer in a customer group that has this product assigned.
+            </p>
+            <GroupCheckboxList
+              allItems={allGroups}
+              selectedIds={selectedGroupIds}
+              setSelectedIds={setSelectedGroupIds}
+              getLabel={g => g.name}
+              getSubLabel={g => g.description}
+              searchPlaceholder="Search product groups…"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Purchase Price *</label>
@@ -187,7 +303,7 @@ function ProductDetailPage() {
 
           <div className="flex gap-3 pt-2">
             <button type="submit" className="btn-primary"
-              disabled={mutation.isPending || (!isNew && !isDirty)}>
+              disabled={mutation.isPending || (!isNew && !isDirty && !groupsDirty)}>
               {mutation.isPending ? 'Saving…' : isNew ? 'Create Product' : 'Save Changes'}
             </button>
             <button type="button" className="btn-secondary" onClick={() => router.back()}>

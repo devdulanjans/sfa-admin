@@ -438,28 +438,37 @@ function InvoicesPage() {
         totalPages={data?.totalPages || 1}
         currentPage={page}
         onPageChange={setPage}
-        actions={<ExportButton filename="invoices" />}
+        actions={
+          <ExportButton
+            filename="invoices"
+            exportFn={(format) => invoiceApi.export(format, {
+              ...(filters.invoiceNo       && { invoiceNo:   filters.invoiceNo }),
+              ...(filters.orderNo         && { orderNo:     filters.orderNo }),
+              ...(filters.customer?.value  && { customerId:  filters.customer.value }),
+              ...(filters.salesRep?.value  && { salesRepId:  filters.salesRep.value }),
+              ...(filters.createdFrom     && { createdFrom: filters.createdFrom }),
+              ...(filters.createdTo       && { createdTo:   filters.createdTo }),
+              ...(filters.issuedFrom      && { issuedFrom:  filters.issuedFrom }),
+              ...(filters.issuedTo        && { issuedTo:    filters.issuedTo }),
+              ...(filters.dueFrom         && { dueFrom:     filters.dueFrom }),
+              ...(filters.dueTo           && { dueTo:       filters.dueTo }),
+            })}
+            detailedExportFn={() => invoiceApi.exportDetailsBulk({
+              ...(filters.invoiceNo       && { invoiceNo:   filters.invoiceNo }),
+              ...(filters.orderNo         && { orderNo:     filters.orderNo }),
+              ...(filters.customer?.value  && { customerId:  filters.customer.value }),
+              ...(filters.salesRep?.value  && { salesRepId:  filters.salesRep.value }),
+              ...(filters.createdFrom     && { createdFrom: filters.createdFrom }),
+              ...(filters.createdTo       && { createdTo:   filters.createdTo }),
+              ...(filters.issuedFrom      && { issuedFrom:  filters.issuedFrom }),
+              ...(filters.issuedTo        && { issuedTo:    filters.issuedTo }),
+              ...(filters.dueFrom         && { dueFrom:     filters.dueFrom }),
+              ...(filters.dueTo           && { dueTo:       filters.dueTo }),
+            })}
+          />
+        }
         emptyMessage="No invoices found"
       />
-
-      <style jsx global>{`
-        .input-base {
-          width: 100%;
-          border: 1px solid #d1d5db;
-          border-radius: 0.5rem;
-          padding: 0.375rem 0.625rem;
-          font-size: 0.8125rem;
-          color: #111827;
-          background: #fff;
-          outline: none;
-          transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .input-base:focus {
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
-        }
-        .input-base::placeholder { color: #9ca3af; }
-      `}</style>
     </Layout>
   );
 }

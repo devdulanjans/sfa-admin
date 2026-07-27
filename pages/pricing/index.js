@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import { withAuth } from '../../lib/auth';
-import { pricingApi, productApi, customerApi } from '../../lib/api';
+import { pricingApi, productApi, customerApi, customerGroupApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
 
@@ -116,20 +116,35 @@ function buildColumns(onEdit, onDelete) {
     {
       key: 'product',
       label: 'Product',
-      render: (_, r) => (
-        <div>
-          <p className="font-medium text-gray-900 text-sm">{r.product?.name ?? '—'}</p>
-          {r.product?.productCode && (
-            <p className="text-xs text-gray-400">{r.product.productCode}</p>
-          )}
-        </div>
-      ),
+      render: (_, r) =>
+        r.productGroup ? (
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 uppercase tracking-wide">
+              Group
+            </span>
+            <span className="text-sm text-gray-800">{r.productGroup.name}</span>
+          </div>
+        ) : (
+          <div>
+            <p className="font-medium text-gray-900 text-sm">{r.product?.name ?? '—'}</p>
+            {r.product?.productCode && (
+              <p className="text-xs text-gray-400">{r.product.productCode}</p>
+            )}
+          </div>
+        ),
     },
     {
       key: 'customer',
       label: 'Customer',
       render: (_, r) =>
-        r.customer ? (
+        r.customerGroup ? (
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 uppercase tracking-wide">
+              Group
+            </span>
+            <span className="text-sm text-gray-800">{r.customerGroup.name}</span>
+          </div>
+        ) : r.customer ? (
           <div className="flex items-center gap-1.5">
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wide">
               Special
@@ -183,8 +198,14 @@ function BatchPricingPage() {
   const [editingRule, setEditingRule] = useState(null);  // null = create, object = edit
   const [deleteTarget, setDeleteTarget] = useState(null);  // { id, name }
 
-  const [productId, setProductId]   = useState('');
-  const [customerId, setCustomerId] = useState('');
+  const [productId, setProductId]           = useState('');
+  const [productTarget, setProductTarget]   = useState('product'); // 'product' | 'group'
+  const [productGroupId, setProductGroupId] = useState('');
+
+  const [customerId, setCustomerId]           = useState('');
+  const [customerTarget, setCustomerTarget]   = useState('all'); // 'all' | 'customer' | 'group'
+  const [customerGroupId, setCustomerGroupId] = useState('');
+
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
@@ -208,6 +229,16 @@ function BatchPricingPage() {
       const d = r.data;
       return Array.isArray(d) ? d : (d.content ?? []);
     }),
+  });
+
+  const { data: productGroups = [] } = useQuery({
+    queryKey: ['product-groups-all'],
+    queryFn: () => productGroupApi.list({ size: 200 }).then(r => r.data.content ?? []),
+  });
+
+  const { data: customerGroups = [] } = useQuery({
+    queryKey: ['customer-groups-all'],
+    queryFn: () => customerGroupApi.list({ size: 200 }).then(r => r.data.content ?? []),
   });
 
   const activeProducts = products.filter(p => p.status === 'ACTIVE');
@@ -246,7 +277,11 @@ function BatchPricingPage() {
     const todayStr = new Date().toISOString().split('T')[0];
     setEditingRule(null);
     setProductId('');
+    setProductTarget('product');
+    setProductGroupId('');
     setCustomerId('');
+    setCustomerTarget('all');
+    setCustomerGroupId('');
     setSubmitAttempted(false);
     reset({ price: '', minQty: '', startDate: todayStr, endDate: '' });
     setShowForm(true);
@@ -254,10 +289,28 @@ function BatchPricingPage() {
 
   function openEdit(rule) {
     setEditingRule(rule);
-    const pid = rule.product?.id ?? '';
-    const cid = rule.customer?.id ?? '';
-    setProductId(pid);
-    setCustomerId(cid);
+    if (rule.productGroup) {
+      setProductTarget('group');
+      setProductGroupId(rule.productGroup.id);
+      setProductId('');
+    } else {
+      setProductTarget('product');
+      setProductId(rule.product?.id ?? '');
+      setProductGroupId('');
+    }
+    if (rule.customerGroup) {
+      setCustomerTarget('group');
+      setCustomerGroupId(rule.customerGroup.id);
+      setCustomerId('');
+    } else if (rule.customer) {
+      setCustomerTarget('customer');
+      setCustomerId(rule.customer.id);
+      setCustomerGroupId('');
+    } else {
+      setCustomerTarget('all');
+      setCustomerId('');
+      setCustomerGroupId('');
+    }
     setSubmitAttempted(false);
     reset({
       price:     rule.price ?? '',
@@ -272,18 +325,25 @@ function BatchPricingPage() {
     setShowForm(false);
     setEditingRule(null);
     setProductId('');
+    setProductTarget('product');
+    setProductGroupId('');
     setCustomerId('');
+    setCustomerTarget('all');
+    setCustomerGroupId('');
     setSubmitAttempted(false);
     reset();
   }
 
   function onSubmit(data) {
     setSubmitAttempted(true);
-    if (!productId) return;
+    if (productTarget === 'product' && !productId) return;
+    if (productTarget === 'group' && !productGroupId) return;
     const body = {
       ...data,
-      productId,
-      customerId: customerId || undefined,
+      productId:      productTarget === 'product' ? productId : undefined,
+      productGroupId: productTarget === 'group'   ? productGroupId : undefined,
+      customerId:      customerTarget === 'customer' ? customerId : undefined,
+      customerGroupId: customerTarget === 'group'    ? customerGroupId : undefined,
       minQty:    (data.minQty !== '' && data.minQty != null) ? data.minQty : undefined,
     };
     if (editingRule) {
@@ -294,11 +354,14 @@ function BatchPricingPage() {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
-  const productError = submitAttempted && !productId;
+  const productError = submitAttempted &&
+    ((productTarget === 'product' && !productId) || (productTarget === 'group' && !productGroupId));
 
-  const columns = buildColumns(openEdit, (id, row) =>
-    setDeleteTarget({ id, name: `${row.product?.name ?? 'Rule'} — ${row.customer?.name ?? 'All'}` })
-  );
+  const columns = buildColumns(openEdit, (id, row) => {
+    const productLabel  = row.productGroup  ? `Group: ${row.productGroup.name}`   : (row.product?.name ?? 'Rule');
+    const customerLabel = row.customerGroup ? `Group: ${row.customerGroup.name}` : (row.customer?.name ?? 'All');
+    setDeleteTarget({ id, name: `${productLabel} — ${customerLabel}` });
+  });
 
   return (
     <Layout title="Batch Pricing">
@@ -320,17 +383,12 @@ function BatchPricingPage() {
       {/* ── Create / Edit modal ────────────────────────────────────────────── */}
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-semibold text-gray-900">
                   {editingRule ? 'Edit Price Rule' : 'New Price Rule'}
                 </h2>
-                {!editingRule && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Leave Customer blank to apply to all customers.
-                  </p>
-                )}
               </div>
               <button
                 type="button"
@@ -345,39 +403,101 @@ function BatchPricingPage() {
 
               {/* Product */}
               <div>
-                <label className="label">Product *</label>
-                <Combobox
-                  items={activeProducts}
-                  value={productId}
-                  onChange={setProductId}
-                  placeholder="Search by name or code…"
-                  getLabel={p => p.name}
-                  getSubLabel={p => p.productCode}
-                  error={productError}
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Product *</label>
+                  <div className="flex gap-3 text-xs">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={productTarget === 'product'}
+                        onChange={() => setProductTarget('product')} />
+                      Specific Product
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={productTarget === 'group'}
+                        onChange={() => setProductTarget('group')} />
+                      Product Group
+                    </label>
+                  </div>
+                </div>
+                {productTarget === 'product' ? (
+                  <Combobox
+                    items={activeProducts}
+                    value={productId}
+                    onChange={setProductId}
+                    placeholder="Search by name or code…"
+                    getLabel={p => p.name}
+                    getSubLabel={p => p.productCode}
+                    error={productError}
+                  />
+                ) : (
+                  <Combobox
+                    items={productGroups}
+                    value={productGroupId}
+                    onChange={setProductGroupId}
+                    placeholder="Search product groups…"
+                    getLabel={g => g.name}
+                    getSubLabel={g => `${g.memberCount} product${g.memberCount === 1 ? '' : 's'}`}
+                    error={productError}
+                  />
+                )}
                 {productError && (
-                  <p className="text-red-500 text-xs mt-1">Please select a product</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    Please select a {productTarget === 'product' ? 'product' : 'product group'}
+                  </p>
                 )}
               </div>
 
               {/* Customer */}
               <div>
-                <label className="label">
-                  Customer{' '}
-                  <span className="text-gray-400 font-normal text-xs">(leave blank = applies to all)</span>
-                </label>
-                <Combobox
-                  items={customers}
-                  value={customerId}
-                  onChange={setCustomerId}
-                  placeholder="Search customer…"
-                  getLabel={c => c.name}
-                  getSubLabel={c => c.customerCode}
-                />
-                {customerId && (
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Customer</label>
+                  <div className="flex gap-3 text-xs">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={customerTarget === 'all'}
+                        onChange={() => setCustomerTarget('all')} />
+                      All Customers
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={customerTarget === 'customer'}
+                        onChange={() => setCustomerTarget('customer')} />
+                      Specific Customer
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={customerTarget === 'group'}
+                        onChange={() => setCustomerTarget('group')} />
+                      Customer Group
+                    </label>
+                  </div>
+                </div>
+                {customerTarget === 'customer' && (
+                  <Combobox
+                    items={customers}
+                    value={customerId}
+                    onChange={setCustomerId}
+                    placeholder="Search customer…"
+                    getLabel={c => c.name}
+                    getSubLabel={c => c.customerCode}
+                  />
+                )}
+                {customerTarget === 'group' && (
+                  <Combobox
+                    items={customerGroups}
+                    value={customerGroupId}
+                    onChange={setCustomerGroupId}
+                    placeholder="Search customer groups…"
+                    getLabel={g => g.name}
+                    getSubLabel={g => `${g.memberCount} customer${g.memberCount === 1 ? '' : 's'}`}
+                  />
+                )}
+                {(customerTarget === 'customer' && customerId) && (
                   <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                     This will create a customer-specific price that overrides the default.
+                  </p>
+                )}
+                {(customerTarget === 'group' && customerGroupId) && (
+                  <p className="text-xs text-purple-600 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    This applies to every current member of the group — live, including future additions.
                   </p>
                 )}
               </div>

@@ -42,7 +42,7 @@ const NAV = [
   },
   {
     label: 'Pricing',
-    childKeys: ['MOD_BATCH_PRICE', 'MOD_PROMOTIONS'],
+    childKeys: ['MOD_BATCH_PRICE', 'MOD_PROMOTIONS', 'MOD_CUSTOMER_GROUPS', 'MOD_PRODUCT_GROUPS'],
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
@@ -50,8 +50,10 @@ const NAV = [
       </svg>
     ),
     children: [
-      { href: '/pricing',            label: 'Batch Pricing', permKey: 'MOD_BATCH_PRICE', exact: true },
-      { href: '/pricing/promotions', label: 'Promotions',    permKey: 'MOD_PROMOTIONS' },
+      { href: '/pricing',                  label: 'Batch Pricing',   permKey: 'MOD_BATCH_PRICE', exact: true },
+      { href: '/pricing/promotions',       label: 'Promotions',     permKey: 'MOD_PROMOTIONS' },
+      { href: '/pricing/customer-groups',  label: 'Customer Groups', permKey: 'MOD_CUSTOMER_GROUPS' },
+      { href: '/pricing/product-groups',   label: 'Product Groups',  permKey: 'MOD_PRODUCT_GROUPS' },
     ],
   },
   {
@@ -149,7 +151,7 @@ const NAV = [
   },
   {
     label: 'Reports',
-    childKeys: ['MOD_RPT_SALES', 'MOD_RPT_PERF'],
+    childKeys: ['MOD_RPT_SALES', 'MOD_RPT_PERF', 'MOD_RPT_MILEAGE'],
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
@@ -159,6 +161,22 @@ const NAV = [
     children: [
       { href: '/reports/sales',       label: 'Sales Reports', permKey: 'MOD_RPT_SALES' },
       { href: '/reports/performance', label: 'Performance',   permKey: 'MOD_RPT_PERF' },
+      { href: '/reports/mileage',     label: 'Mileage',       permKey: 'MOD_RPT_MILEAGE' },
+    ],
+  },
+  {
+    label: 'Sales Targets',
+    childKeys: ['MOD_SALES_TARGETS', 'MOD_TARGET_CALENDAR'],
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <circle cx="12" cy="12" r="9" strokeWidth={1.75} />
+        <circle cx="12" cy="12" r="5" strokeWidth={1.75} />
+        <circle cx="12" cy="12" r="1" strokeWidth={1.75} />
+      </svg>
+    ),
+    children: [
+      { href: '/sales-targets',          label: 'Targets',          permKey: 'MOD_SALES_TARGETS' },
+      { href: '/sales-targets/calendar', label: 'Working Calendar', permKey: 'MOD_TARGET_CALENDAR' },
     ],
   },
   {
@@ -222,7 +240,8 @@ function groupHasActiveChild(group, pathname) {
 // the install, not a person. Anything not listed here is CORE (always available).
 const SFA_MODULES = new Set([
   'MOD_ORDERS', 'MOD_INVOICES', 'MOD_INV_STOCK', 'MOD_INV_MOVES',
-  'MOD_RETURNS', 'MOD_DAMAGES', 'MOD_RPT_SALES', 'MOD_RPT_PERF',
+  'MOD_RETURNS', 'MOD_DAMAGES', 'MOD_RPT_SALES', 'MOD_RPT_PERF', 'MOD_RPT_MILEAGE',
+  'MOD_SALES_TARGETS', 'MOD_TARGET_CALENDAR',
 ]);
 const POS_MODULES = new Set([
   'MOD_POS_TERMINAL', 'MOD_POS_HISTORY', 'MOD_POS_CUSTOMERS', 'MOD_POS_CREDIT',

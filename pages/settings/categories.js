@@ -66,7 +66,7 @@ function CategoriesPage() {
 
   return (
     <Layout title="Product Categories">
-      <div className="max-w-2xl">
+      <div className="w-full">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">
             Manage product categories. These appear in the product creation form.

@@ -275,13 +275,23 @@ function OrdersPage() {
         totalPages={data?.totalPages || 1}
         currentPage={page}
         onPageChange={setPage}
-        actions={<ExportButton params={{
-          status, source,
-          orderNo:   search.orderNo   || undefined,
-          invoiceNo: search.invoiceNo || undefined,
-          dateFrom:  search.dateFrom  || undefined,
-          dateTo:    search.dateTo    || undefined,
-        }} filename="orders" />}
+        actions={<ExportButton
+          filename="orders"
+          exportFn={(format) => orderApi.export(format, {
+            status, source,
+            orderNo:   search.orderNo   || undefined,
+            invoiceNo: search.invoiceNo || undefined,
+            dateFrom:  search.dateFrom  || undefined,
+            dateTo:    search.dateTo    || undefined,
+          })}
+          detailedExportFn={() => orderApi.exportDetailsBulk({
+            status, source,
+            orderNo:   search.orderNo   || undefined,
+            invoiceNo: search.invoiceNo || undefined,
+            dateFrom:  search.dateFrom  || undefined,
+            dateTo:    search.dateTo    || undefined,
+          })}
+        />}
         emptyMessage="No orders found"
       />
     </Layout>

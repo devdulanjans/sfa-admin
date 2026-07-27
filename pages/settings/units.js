@@ -65,7 +65,7 @@ function UnitsPage() {
 
   return (
     <Layout title="Units of Measure">
-      <div className="max-w-xl">
+      <div className="w-full">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">
             Manage units of measure used when creating products.

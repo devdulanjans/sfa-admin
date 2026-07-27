@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import { withAuth } from '../../lib/auth';
 import { invoiceApi } from '../../lib/api';
 
@@ -30,6 +31,7 @@ function InvoiceDetailPage() {
   const iframeRef = useRef(null);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfError, setPdfError] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const { data: invoice } = useQuery({
     queryKey: ['invoice-detail', id],
@@ -72,6 +74,24 @@ function InvoiceDetailPage() {
     a.click();
   };
 
+  const handleExportDetails = async () => {
+    setExporting(true);
+    try {
+      const { data } = await invoiceApi.exportDetails(id);
+      const url = URL.createObjectURL(new Blob([data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${invoice?.invoiceNumber || id}-details.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Exported invoice details');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: '#eee' }}>
       <style>{PRINT_CSS}</style>
@@ -97,6 +117,11 @@ function InvoiceDetailPage() {
           border: 'none', borderRadius: 4, cursor: pdfUrl ? 'pointer' : 'default',
           opacity: pdfUrl ? 1 : 0.6, fontWeight: 600, fontSize: 13,
         }}>📄 Download</button>
+        <button onClick={handleExportDetails} disabled={!invoice || exporting} style={{
+          padding: '6px 14px', background: '#6d4fe0', color: '#fff',
+          border: 'none', borderRadius: 4, cursor: (invoice && !exporting) ? 'pointer' : 'default',
+          opacity: (invoice && !exporting) ? 1 : 0.6, fontWeight: 600, fontSize: 13,
+        }}>{exporting ? 'Exporting…' : '⬇ Export Excel (full detail)'}</button>
       </div>
 
       {!pdfUrl && !pdfError && (
