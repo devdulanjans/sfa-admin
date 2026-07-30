@@ -19,77 +19,84 @@ const NAV = [
     ),
   },
   {
-    href: '/customers',
-    label: 'Customers',
-    permKey: 'MOD_CUSTOMERS',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-  },
-  {
-    href: '/products',
-    label: 'Products',
-    permKey: 'MOD_PRODUCTS',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Pricing',
-    childKeys: ['MOD_BATCH_PRICE', 'MOD_PROMOTIONS', 'MOD_CUSTOMER_GROUPS', 'MOD_PRODUCT_GROUPS'],
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    children: [
-      { href: '/pricing',                  label: 'Batch Pricing',   permKey: 'MOD_BATCH_PRICE', exact: true },
-      { href: '/pricing/promotions',       label: 'Promotions',     permKey: 'MOD_PROMOTIONS' },
-      { href: '/pricing/customer-groups',  label: 'Customer Groups', permKey: 'MOD_CUSTOMER_GROUPS' },
-      { href: '/pricing/product-groups',   label: 'Product Groups',  permKey: 'MOD_PRODUCT_GROUPS' },
+    label: 'Sales Management',
+    childKeys: [
+      'MOD_CUSTOMERS', 'MOD_PRODUCTS',
+      'MOD_BATCH_PRICE', 'MOD_PROMOTIONS', 'MOD_CUSTOMER_GROUPS', 'MOD_PRODUCT_GROUPS',
+      'MOD_ORDERS', 'MOD_INVOICES',
+      'MOD_INV_STOCK', 'MOD_INV_MOVES',
+      'MOD_RETURNS', 'MOD_DAMAGES',
+      'MOD_SALES_TARGETS', 'MOD_TARGET_CALENDAR',
+      'MOD_DISTRIBUTORS',
     ],
-  },
-  {
-    href: '/orders',
-    label: 'Orders',
-    permKey: 'MOD_ORDERS',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-      </svg>
-    ),
-  },
-  {
-    href: '/invoices',
-    label: 'Invoices',
-    permKey: 'MOD_INVOICES',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Inventory',
-    childKeys: ['MOD_INV_STOCK', 'MOD_INV_MOVES'],
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
       </svg>
     ),
     children: [
-      { href: '/inventory',            label: 'Stock Levels',    permKey: 'MOD_INV_STOCK', exact: true },
-      { href: '/inventory/movements',  label: 'Stock Movements', permKey: 'MOD_INV_MOVES' },
+      {
+        href: '/customers',
+        label: 'Customers',
+        permKey: 'MOD_CUSTOMERS',
+      },
+      {
+        href: '/products',
+        label: 'Products',
+        permKey: 'MOD_PRODUCTS',
+      },
+      {
+        label: 'Pricing',
+        childKeys: ['MOD_BATCH_PRICE', 'MOD_PROMOTIONS', 'MOD_CUSTOMER_GROUPS', 'MOD_PRODUCT_GROUPS'],
+        children: [
+          { href: '/pricing',                  label: 'Batch Pricing',   permKey: 'MOD_BATCH_PRICE', exact: true },
+          { href: '/pricing/promotions',       label: 'Promotions',     permKey: 'MOD_PROMOTIONS' },
+          { href: '/pricing/customer-groups',  label: 'Customer Groups', permKey: 'MOD_CUSTOMER_GROUPS' },
+          { href: '/pricing/product-groups',   label: 'Product Groups',  permKey: 'MOD_PRODUCT_GROUPS' },
+        ],
+      },
+      {
+        href: '/orders',
+        label: 'Orders',
+        permKey: 'MOD_ORDERS',
+      },
+      {
+        href: '/invoices',
+        label: 'Invoices',
+        permKey: 'MOD_INVOICES',
+      },
+      {
+        label: 'Inventory',
+        childKeys: ['MOD_INV_STOCK', 'MOD_INV_MOVES'],
+        children: [
+          { href: '/inventory',            label: 'Stock Levels',    permKey: 'MOD_INV_STOCK', exact: true },
+          { href: '/inventory/movements',  label: 'Stock Movements', permKey: 'MOD_INV_MOVES' },
+        ],
+      },
+      {
+        href: '/returns',
+        label: 'Returns',
+        permKey: 'MOD_RETURNS',
+      },
+      {
+        href: '/damages',
+        label: 'Damages',
+        permKey: 'MOD_DAMAGES',
+      },
+      {
+        label: 'Sales Targets',
+        childKeys: ['MOD_SALES_TARGETS', 'MOD_TARGET_CALENDAR'],
+        children: [
+          { href: '/sales-targets',          label: 'Targets',          permKey: 'MOD_SALES_TARGETS' },
+          { href: '/sales-targets/calendar', label: 'Working Calendar', permKey: 'MOD_TARGET_CALENDAR' },
+        ],
+      },
+      {
+        href: '/distributors',
+        label: 'Distributors',
+        permKey: 'MOD_DISTRIBUTORS',
+      },
     ],
   },
   {
@@ -128,26 +135,27 @@ const NAV = [
     ],
   },
   {
-    href: '/returns',
-    label: 'Returns',
-    permKey: 'MOD_RETURNS',
+    label: 'Financial Management',
+    childKeys: [
+      'MOD_FIN_LEDGER', 'MOD_FIN_PAYABLE', 'MOD_FIN_RECEIVABLE', 'MOD_FIN_BANK',
+      'MOD_FIN_TAX', 'MOD_FIN_ASSETS', 'MOD_FIN_PL', 'MOD_FIN_BS',
+    ],
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 3a9 9 0 100 18 9 9 0 000-18z" />
       </svg>
     ),
-  },
-  {
-    href: '/damages',
-    label: 'Damages',
-    permKey: 'MOD_DAMAGES',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
-    ),
+    children: [
+      { href: '/finance/general-ledger', label: 'General Ledger',      permKey: 'MOD_FIN_LEDGER' },
+      { href: '/finance/payable',        label: 'Accounts Payable',    permKey: 'MOD_FIN_PAYABLE' },
+      { href: '/finance/receivable',     label: 'Accounts Receivable', permKey: 'MOD_FIN_RECEIVABLE' },
+      { href: '/finance/bank',           label: 'Bank Management',     permKey: 'MOD_FIN_BANK' },
+      { href: '/finance/tax',            label: 'Tax Management',      permKey: 'MOD_FIN_TAX' },
+      { href: '/finance/fixed-assets',   label: 'Fixed Assets',        permKey: 'MOD_FIN_ASSETS' },
+      { href: '/finance/profit-loss',    label: 'Profit & Loss',       permKey: 'MOD_FIN_PL' },
+      { href: '/finance/balance-sheet',  label: 'Balance Sheet',       permKey: 'MOD_FIN_BS' },
+    ],
   },
   {
     label: 'Reports',
@@ -163,32 +171,6 @@ const NAV = [
       { href: '/reports/performance', label: 'Performance',   permKey: 'MOD_RPT_PERF' },
       { href: '/reports/mileage',     label: 'Mileage',       permKey: 'MOD_RPT_MILEAGE' },
     ],
-  },
-  {
-    label: 'Sales Targets',
-    childKeys: ['MOD_SALES_TARGETS', 'MOD_TARGET_CALENDAR'],
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <circle cx="12" cy="12" r="9" strokeWidth={1.75} />
-        <circle cx="12" cy="12" r="5" strokeWidth={1.75} />
-        <circle cx="12" cy="12" r="1" strokeWidth={1.75} />
-      </svg>
-    ),
-    children: [
-      { href: '/sales-targets',          label: 'Targets',          permKey: 'MOD_SALES_TARGETS' },
-      { href: '/sales-targets/calendar', label: 'Working Calendar', permKey: 'MOD_TARGET_CALENDAR' },
-    ],
-  },
-  {
-    href: '/distributors',
-    label: 'Distributors',
-    permKey: 'MOD_DISTRIBUTORS',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>
-    ),
   },
   {
     label: 'Users & Admin',
@@ -231,8 +213,37 @@ function isActive(item, pathname) {
     : pathname === item.href || pathname.startsWith(item.href + '/');
 }
 
+// Recursive — a group is "active" if any leaf link at any nesting depth is active
+// (e.g. Sales Management > Pricing > Batch Pricing marks all three ancestors active).
 function groupHasActiveChild(group, pathname) {
-  return group.children?.some(c => isActive(c, pathname)) ?? false;
+  return group.children?.some(c => c.children ? groupHasActiveChild(c, pathname) : isActive(c, pathname)) ?? false;
+}
+
+// Recursive — a group is visible if it has at least one visible descendant leaf;
+// canSee() already applies the license/permission check per leaf permKey.
+function filterVisible(items, canSee) {
+  return items
+    .map(item => {
+      if (item.children) {
+        const visibleChildren = filterVisible(item.children, canSee);
+        return visibleChildren.length ? { ...item, children: visibleChildren } : null;
+      }
+      return canSee(item.permKey) ? item : null;
+    })
+    .filter(Boolean);
+}
+
+// Recursive — seeds open/closed state for every group at every depth, keyed by a
+// slash-joined path (not bare label) so nested groups can't collide with top-level ones.
+function collectOpenGroups(items, pathname, parentPath = '') {
+  let acc = {};
+  items.forEach(item => {
+    if (!item.children) return;
+    const path = parentPath ? `${parentPath}/${item.label}` : item.label;
+    if (groupHasActiveChild(item, pathname)) acc[path] = true;
+    acc = { ...acc, ...collectOpenGroups(item.children, pathname, path) };
+  });
+  return acc;
 }
 
 // Modules gated by this install's SFA/POS license — checked ahead of every other
@@ -248,12 +259,100 @@ const POS_MODULES = new Set([
   'MOD_POS_DASHBOARD', 'MOD_POS_REPORTS', 'MOD_POS_DAILY_REPORT', 'MOD_POS_DRAWER',
   'MOD_ACC_EXPENSES', 'MOD_ACC_LEDGER', 'MOD_ACC_PROFIT_LOSS',
 ]);
+const FINANCE_MODULES = new Set([
+  'MOD_FIN_LEDGER', 'MOD_FIN_PAYABLE', 'MOD_FIN_RECEIVABLE', 'MOD_FIN_BANK',
+  'MOD_FIN_TAX', 'MOD_FIN_ASSETS', 'MOD_FIN_PL', 'MOD_FIN_BS',
+]);
 
-function packageAllowed(permKey, sfaEnabled, posEnabled) {
+function packageAllowed(permKey, sfaEnabled, posEnabled, financeEnabled) {
   if (!permKey) return true;
   if (SFA_MODULES.has(permKey)) return sfaEnabled;
   if (POS_MODULES.has(permKey)) return posEnabled;
+  if (FINANCE_MODULES.has(permKey)) return financeEnabled;
   return true;
+}
+
+// Renders one NAV node at any depth — a leaf Link, or a collapsible group that
+// recurses into its own children. depth 0 gets the full icon + label treatment;
+// depth >= 1 (nested under any group, one level or two) gets the smaller dot-bullet
+// treatment, matching the sidebar's original single-level nested style.
+function NavNode({ item, path, pathname, openGroups, toggleGroup, onClose, depth }) {
+  if (!item.children) {
+    const active = isActive(item, pathname);
+    return (
+      <Link
+        href={item.href}
+        onClick={onClose}
+        className={clsx(
+          'flex items-center rounded-lg transition-colors',
+          depth === 0
+            ? 'gap-3 px-3 py-2.5 text-sm font-medium'
+            : 'gap-2 px-3 py-2 text-sm',
+          active
+            ? depth === 0 ? 'bg-blue-600 text-white shadow-sm' : 'bg-blue-600/90 text-white font-medium'
+            : depth === 0 ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+        )}
+      >
+        {depth === 0 ? (
+          <span className={clsx('shrink-0', active ? 'text-white' : 'text-slate-400')}>{item.icon}</span>
+        ) : (
+          <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', active ? 'bg-white' : 'bg-slate-600')} />
+        )}
+        {item.label}
+      </Link>
+    );
+  }
+
+  const open = !!openGroups[path];
+  const groupActive = groupHasActiveChild(item, pathname);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => toggleGroup(path)}
+        className={clsx(
+          'w-full flex items-center rounded-lg text-left transition-colors',
+          depth === 0
+            ? 'gap-3 px-3 py-2.5 text-sm font-medium'
+            : 'gap-2 px-3 py-2 text-sm',
+          groupActive && !open
+            ? 'text-blue-400 hover:bg-slate-800'
+            : (depth === 0 ? 'text-slate-300' : 'text-slate-400') + ' hover:bg-slate-800 hover:text-white'
+        )}
+      >
+        {depth === 0 ? (
+          <span className={clsx('shrink-0', groupActive ? 'text-blue-400' : 'text-slate-400')}>{item.icon}</span>
+        ) : (
+          <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', groupActive ? 'bg-blue-400' : 'bg-slate-600')} />
+        )}
+        <span className="flex-1">{item.label}</span>
+        <svg
+          className={clsx('w-4 h-4 text-slate-500 transition-transform duration-200 shrink-0', open && 'rotate-180')}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <div className={clsx('overflow-hidden transition-all duration-200', open ? 'max-h-[999px] opacity-100' : 'max-h-0 opacity-0')}>
+        <div className="mt-0.5 ml-3 pl-3 border-l border-slate-700 space-y-0.5 pb-1">
+          {item.children.map(child => (
+            <NavNode
+              key={child.href || child.label}
+              item={child}
+              path={`${path}/${child.label}`}
+              pathname={pathname}
+              openGroups={openGroups}
+              toggleGroup={toggleGroup}
+              onClose={onClose}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function PlatformOwnerSidebar({ onClose, active }) {
@@ -304,55 +403,31 @@ export default function Sidebar({ onClose }) {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const perms        = user?.permissions || [];
   const hasWildcard  = perms.includes('*');
-  const sfaEnabled   = user?.sfaEnabled ?? true;
-  const posEnabled   = user?.posEnabled ?? true;
+  const sfaEnabled     = user?.sfaEnabled ?? true;
+  const posEnabled     = user?.posEnabled ?? true;
+  const financeEnabled = user?.financeEnabled ?? false;
 
   function canSee(permKey) {
-    if (!packageAllowed(permKey, sfaEnabled, posEnabled)) return false;
+    if (!packageAllowed(permKey, sfaEnabled, posEnabled, financeEnabled)) return false;
     if (!permKey) return true;
     return isSuperAdmin || hasWildcard || perms.includes(permKey);
   }
 
-  // Build the list of visible top-level items
-  const visible = NAV.filter(item => {
-    if (item.children) {
-      if (!item.childKeys?.some(k => packageAllowed(k, sfaEnabled, posEnabled))) return false;
-      if (isSuperAdmin || hasWildcard) return true;
-      return item.childKeys?.some(k => perms.includes(k) && packageAllowed(k, sfaEnabled, posEnabled));
-    }
-    return canSee(item.permKey);
-  }).map(item => {
-    if (!item.children) return item;
-    const visibleChildren = item.children.filter(c => canSee(c.permKey));
-    return { ...item, children: visibleChildren };
-  }).filter(item => !item.children || item.children.length > 0);
+  // Build the list of visible items — recursive, so nested groups (e.g. Sales
+  // Management > Pricing) are filtered the same way as top-level ones.
+  const visible = filterVisible(NAV, canSee);
 
-  // Track which groups are open; seed with groups that have an active child
-  const [openGroups, setOpenGroups] = useState(() => {
-    const initial = {};
-    NAV.forEach(item => {
-      if (item.children) {
-        initial[item.label] = groupHasActiveChild(item, pathname);
-      }
-    });
-    return initial;
-  });
+  // Track which groups are open (keyed by slash-joined path, not bare label, so
+  // nested groups can't collide with top-level ones); seed with groups on the active route.
+  const [openGroups, setOpenGroups] = useState(() => collectOpenGroups(NAV, pathname));
 
-  // Auto-open the group that contains the current route when pathname changes
+  // Auto-open the group(s) containing the current route when pathname changes
   useEffect(() => {
-    setOpenGroups(prev => {
-      const next = { ...prev };
-      NAV.forEach(item => {
-        if (item.children && groupHasActiveChild(item, pathname)) {
-          next[item.label] = true;
-        }
-      });
-      return next;
-    });
+    setOpenGroups(prev => ({ ...prev, ...collectOpenGroups(NAV, pathname) }));
   }, [pathname]);
 
-  function toggleGroup(label) {
-    setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }));
+  function toggleGroup(path) {
+    setOpenGroups(prev => ({ ...prev, [path]: !prev[path] }));
   }
 
   return (
@@ -376,98 +451,18 @@ export default function Sidebar({ onClose }) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
-        {visible.map(item => {
-          /* ── Leaf link ── */
-          if (!item.children) {
-            const active = isActive(item, pathname);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={clsx(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                )}
-              >
-                <span className={clsx('shrink-0', active ? 'text-white' : 'text-slate-400')}>
-                  {item.icon}
-                </span>
-                {item.label}
-              </Link>
-            );
-          }
-
-          /* ── Collapsible group ── */
-          const open         = !!openGroups[item.label];
-          const groupActive  = groupHasActiveChild(item, pathname);
-
-          return (
-            <div key={item.label}>
-              {/* Group header — clickable */}
-              <button
-                type="button"
-                onClick={() => toggleGroup(item.label)}
-                className={clsx(
-                  'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left',
-                  groupActive && !open
-                    ? 'text-blue-400 hover:bg-slate-800'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                )}
-              >
-                <span className={clsx('shrink-0', groupActive ? 'text-blue-400' : 'text-slate-400')}>
-                  {item.icon}
-                </span>
-                <span className="flex-1">{item.label}</span>
-                {/* Chevron */}
-                <svg
-                  className={clsx(
-                    'w-4 h-4 text-slate-500 transition-transform duration-200 shrink-0',
-                    open && 'rotate-180'
-                  )}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {/* Children — slide in/out */}
-              <div
-                className={clsx(
-                  'overflow-hidden transition-all duration-200',
-                  open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-                )}
-              >
-                <div className="mt-0.5 ml-3 pl-3 border-l border-slate-700 space-y-0.5 pb-1">
-                  {item.children.map(child => {
-                    const active = isActive(child, pathname);
-                    return (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        onClick={onClose}
-                        className={clsx(
-                          'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                          active
-                            ? 'bg-blue-600/90 text-white font-medium'
-                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                        )}
-                      >
-                        <span className={clsx(
-                          'w-1.5 h-1.5 rounded-full shrink-0',
-                          active ? 'bg-white' : 'bg-slate-600'
-                        )} />
-                        {child.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {visible.map(item => (
+          <NavNode
+            key={item.href || item.label}
+            item={item}
+            path={item.label}
+            pathname={pathname}
+            openGroups={openGroups}
+            toggleGroup={toggleGroup}
+            onClose={onClose}
+            depth={0}
+          />
+        ))}
       </nav>
 
       {/* Footer */}

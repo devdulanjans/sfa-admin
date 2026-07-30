@@ -25,6 +25,22 @@ const COLUMNS = [
   { key: 'reportedBy',   label: 'Reported By', render: (_, r) => r.reportedBy?.fullName ?? '—' },
   { key: 'status',       label: 'Status',      render: (v) => <StatusBadge status={v} /> },
   { key: 'damageDate',   label: 'Date',        render: (v) => v ? new Date(v).toLocaleDateString() : '—' },
+  { key: 'pdf', label: '', render: (_, row) => (
+      <button
+        onClick={async () => {
+          try {
+            const res = await damageApi.pdf(row.id);
+            const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            window.open(url, '_blank');
+          } catch (err) {
+            toast.error('Failed to load PDF: ' + (err.response?.data?.detail || err.message));
+          }
+        }}
+        className="text-green-600 text-xs hover:text-green-800 font-medium"
+      >
+        PDF ↗
+      </button>
+    ) },
 ];
 
 function DamagesPage() {

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import { withAuth } from '../../lib/auth';
-import { mileageApi, dashboardApi } from '../../lib/api';
+import { mileageApi, dashboardApi, settingsApi } from '../../lib/api';
 
 // ── SearchableSelect (copied from invoices/index.js — no shared component exists yet) ──
 
@@ -137,11 +137,29 @@ function fmtKm(v) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+function DisabledNotice() {
+  return (
+    <div className="card p-8 text-center max-w-lg mx-auto mt-8">
+      <p className="text-3xl mb-2">🚗</p>
+      <h2 className="text-base font-semibold text-gray-900 mb-1">Mileage Management is disabled</h2>
+      <p className="text-sm text-gray-500">
+        Enable it in <span className="font-medium">Settings → General</span> to track sales rep mileage sessions.
+      </p>
+    </div>
+  );
+}
+
 function MileageReportPage() {
   const [page, setPage] = useState(0);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [salesRep, setSalesRep] = useState(null);
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn:  () => settingsApi.list().then((r) => r.data),
+  });
+  const enabled = settings?.find((s) => s.key === 'mileage_management_enabled')?.value === 'true';
 
   const { data: repsData } = useQuery({
     queryKey: ['dashboard-sales-reps'],
@@ -170,6 +188,7 @@ function MileageReportPage() {
     queryKey: ['mileage-report', params],
     queryFn:  () => mileageApi.report(params).then((r) => r.data),
     keepPreviousData: true,
+    enabled,
   });
 
   const COLUMNS = [
@@ -181,6 +200,14 @@ function MileageReportPage() {
     { key: 'endedAt', label: 'End Time', render: fmtTime },
     { key: 'distance', label: 'Distance', render: (v) => v != null ? fmtKm(v) : '—' },
   ];
+
+  if (settings && !enabled) {
+    return (
+      <Layout title="Mileage Report">
+        <DisabledNotice />
+      </Layout>
+    );
+  }
 
   return (
     <Layout title="Mileage Report">

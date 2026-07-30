@@ -87,6 +87,7 @@ function OrderDetailPage() {
             <div><dt className="text-gray-500">Customer</dt><dd className="font-medium">{order.customer?.name}</dd></div>
             <div><dt className="text-gray-500">Sales Rep</dt><dd className="font-medium">{order.salesRep?.fullName}</dd></div>
             <div><dt className="text-gray-500">Order Date</dt><dd>{order.orderDate ? new Date(order.orderDate).toLocaleDateString() : '—'}</dd></div>
+            {order.poNumber && <div><dt className="text-gray-500">PO Number</dt><dd className="font-mono">{order.poNumber}</dd></div>}
             {order.approvedBy && <div><dt className="text-gray-500">Approved By</dt><dd>{order.approvedBy?.fullName}</dd></div>}
             {order.notes && <div className="col-span-2"><dt className="text-gray-500">Notes</dt><dd>{order.notes}</dd></div>}
           </dl>

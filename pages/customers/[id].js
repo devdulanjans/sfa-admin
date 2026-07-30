@@ -1,7 +1,8 @@
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Layout from '../../components/Layout';
 import StatusBadge from '../../components/StatusBadge';
 import RecordCreditPaymentModal from '../../components/RecordCreditPaymentModal';
@@ -9,6 +10,118 @@ import { withAuth, useAuth } from '../../lib/auth';
 import { customerApi, productApi, userApi, posApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
+
+// Debounced async-search combobox — same pattern already used in pages/invoices/index.js
+// and pages/reports/mileage.js (this codebase duplicates it per-page rather than sharing
+// a component). value/onChange use {value, label} option shape.
+function SearchableSelect({ placeholder, loadOptions, value, onChange, disabled }) {
+  const [inputVal, setInputVal] = useState('');
+  const [options,  setOptions]  = useState([]);
+  const [open,     setOpen]     = useState(false);
+  const [busy,     setBusy]     = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const fn = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(async () => {
+      setBusy(true);
+      try {
+        setOptions(await loadOptions(inputVal));
+      } catch {
+        setOptions([]);
+      } finally {
+        setBusy(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [inputVal, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const select = (opt) => {
+    onChange(opt);
+    setInputVal('');
+    setOpen(false);
+  };
+
+  const clear = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange(null);
+    setInputVal('');
+    setOpen(false);
+  };
+
+  if (disabled) {
+    return (
+      <div className="input-base flex items-center text-gray-600" style={{ cursor: 'default' }}>
+        {value?.label ?? '—'}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      {value ? (
+        <div className="input-base flex items-center justify-between gap-1" style={{ cursor: 'default' }}>
+          <span className="truncate text-gray-800" style={{ flex: 1 }}>{value.label}</span>
+          <button
+            onMouseDown={clear}
+            className="text-gray-400 hover:text-gray-700 shrink-0 leading-none"
+            style={{ fontSize: 14, lineHeight: 1 }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <input
+          type="text"
+          value={inputVal}
+          placeholder={placeholder}
+          className="input-base"
+          onChange={(e) => setInputVal(e.target.value)}
+          onFocus={() => setOpen(true)}
+        />
+      )}
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+            background: '#fff', border: '1px solid #d1d5db', borderRadius: '0.5rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginTop: 2, maxHeight: 200, overflowY: 'auto',
+          }}
+        >
+          {busy && <div style={{ padding: '8px 12px', fontSize: 12, color: '#9ca3af' }}>Loading…</div>}
+          {!busy && options.length === 0 && (
+            <div style={{ padding: '8px 12px', fontSize: 12, color: '#9ca3af' }}>
+              {inputVal.length < 1 ? 'Type to search…' : 'No results'}
+            </div>
+          )}
+          {!busy && options.map((opt) => (
+            <div
+              key={opt.value}
+              onMouseDown={() => select(opt)}
+              style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', color: '#111827' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#eff6ff')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '')}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CustomerDetailPage() {
   const router = useRouter();
@@ -104,9 +217,48 @@ function CustomerDetailPage() {
   });
   const customerRole = roles.find(r => r.name === 'CUSTOMER');
 
-  const { register, handleSubmit, reset, watch, control, formState: { errors, isDirty } } = useForm({
+  const { register, handleSubmit, reset, watch, setValue, control, formState: { errors, isDirty } } = useForm({
     defaultValues: { visibilityRule: 'ALL', taxRate: 18, addresses: [{ label: '', addressLine: '' }] },
   });
+
+  // Parent Customer (branch hierarchy) — display state for the SearchableSelect, kept in
+  // sync with the registered-but-not-input-bound 'parentCustomerId' form field via setValue.
+  const [parentCustomer, setParentCustomer] = useState(null);
+  const lockedParent = isNew && !!router.query.parentId;
+
+  const { data: branchesData } = useQuery({
+    queryKey: ['customer-branches', id],
+    queryFn: () => customerApi.branches(id).then(r => r.data),
+    enabled: !!id && !isNew && !!customer && !customer.parentCustomerId,
+  });
+  const branches = branchesData?.content ?? [];
+
+  const { data: branchSummary } = useQuery({
+    queryKey: ['customer-branch-summary', id],
+    queryFn: () => customerApi.branchSummary(id).then(r => r.data),
+    enabled: !!id && !isNew && !!customer && !customer.parentCustomerId,
+  });
+
+  const loadParentOptions = async (q) => {
+    if (!q) return [];
+    const res = await customerApi.list({ search: q, topLevelOnly: true, size: 20 });
+    const items = res.data?.content ?? [];
+    return items
+      .filter(c => c.id !== id)
+      .map(c => ({ value: c.id, label: `${c.name}${c.customerCode ? ` (${c.customerCode})` : ''}` }));
+  };
+
+  // Pre-fill and lock the Parent Customer field when arriving via "+ Add Branch"
+  useEffect(() => {
+    if (isNew && router.query.parentId && !parentCustomer) {
+      const pid = router.query.parentId;
+      setValue('parentCustomerId', pid, { shouldDirty: true });
+      customerApi.getById(pid)
+        .then(r => setParentCustomer({ value: pid, label: `${r.data.name}${r.data.customerCode ? ` (${r.data.customerCode})` : ''}` }))
+        .catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNew, router.query.parentId]);
 
   const { fields: addressFields, append: appendAddress, remove: removeAddress } = useFieldArray({
     control,
@@ -124,6 +276,9 @@ function CustomerDetailPage() {
         data.addresses = [{ label: '', addressLine: '' }];
       }
       reset(data);
+      if (customer.parentCustomerId) {
+        setParentCustomer({ value: customer.parentCustomerId, label: customer.parentCustomerName || 'Parent customer' });
+      }
     }
   }, [customer, reset]);
 
@@ -508,6 +663,27 @@ function CustomerDetailPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Parent Customer</label>
+                <SearchableSelect
+                  placeholder="Search customer to set as parent…"
+                  loadOptions={loadParentOptions}
+                  value={parentCustomer}
+                  disabled={lockedParent}
+                  onChange={(opt) => {
+                    setParentCustomer(opt);
+                    setValue('parentCustomerId', opt?.value ?? null, { shouldDirty: true });
+                  }}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {lockedParent
+                    ? 'Locked — creating a branch of this customer.'
+                    : 'Set this if this customer is a branch of another customer. Leave blank for a standalone/head-office customer.'}
+                </p>
+              </div>
+            </div>
+
             {visibilityRule === 'ASSIGNED' && user?.sfaEnabled && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <div className="flex items-center justify-between">
@@ -562,6 +738,54 @@ function CustomerDetailPage() {
             </div>
           </form>
         </div>
+
+        {/* ── Branches card ────────────────────────────────────────── */}
+        {!isNew && customer && !customer.parentCustomerId && (
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Branches</h2>
+              <button
+                type="button"
+                onClick={() => router.push(`/customers/new?parentId=${id}`)}
+                className="btn-primary text-sm py-1.5 px-3"
+              >
+                + Add Branch
+              </button>
+            </div>
+            {branchSummary?.branchCount > 0 ? (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  {branchSummary.branchCount} branch{branchSummary.branchCount === 1 ? '' : 'es'} · Total outstanding: LKR{' '}
+                  {formatAmount(branchSummary.totalOutstanding)}
+                </p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500 border-b">
+                      <th className="py-1.5">Name</th>
+                      <th className="py-1.5">Code</th>
+                      <th className="py-1.5">Status</th>
+                      <th className="py-1.5 text-right">Outstanding</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {branches.map(b => (
+                      <tr key={b.id} className="border-b border-gray-50">
+                        <td className="py-1.5">
+                          <Link href={`/customers/${b.id}`} className="text-blue-600 hover:underline">{b.name}</Link>
+                        </td>
+                        <td className="py-1.5">{b.customerCode}</td>
+                        <td className="py-1.5"><StatusBadge status={b.status} /></td>
+                        <td className="py-1.5 text-right tabular-nums">{formatAmount(b.currentBalance)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">No branches yet.</p>
+            )}
+          </div>
+        )}
 
         {/* ── Customer Credit card (POS-licensed) ─────────────────────────────── */}
         {!isNew && customer && user?.posEnabled && (

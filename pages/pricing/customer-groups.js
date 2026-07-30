@@ -7,7 +7,11 @@ import { customerGroupApi, customerApi, productApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 // ── Checkbox list: search + select-all + scrollable grid of checkboxes ─────────
-function MemberCheckboxList({ allItems, selectedIds, setSelectedIds, getLabel, getSubLabel, searchPlaceholder }) {
+// [getCascadeIds] is optional: given a checked item, returns extra ids to select
+// alongside it (e.g. a parent company's branches). Only applied on check — never
+// on uncheck, so unchecking the parent doesn't drag its branches back out, and
+// the user can freely un-select individual branches afterwards.
+function MemberCheckboxList({ allItems, selectedIds, setSelectedIds, getLabel, getSubLabel, searchPlaceholder, getCascadeIds }) {
   const [search, setSearch] = useState('');
 
   const filtered = search.trim()
@@ -18,8 +22,13 @@ function MemberCheckboxList({ allItems, selectedIds, setSelectedIds, getLabel, g
 
   const allSelected = filtered.length > 0 && filtered.every(i => selectedIds.includes(i.id));
 
-  function toggleOne(id) {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  function toggleOne(item) {
+    const id = item.id;
+    setSelectedIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      const cascadeIds = getCascadeIds?.(item) ?? [];
+      return [...prev, id, ...cascadeIds.filter(cid => !prev.includes(cid))];
+    });
   }
 
   function toggleAll() {
@@ -62,7 +71,7 @@ function MemberCheckboxList({ allItems, selectedIds, setSelectedIds, getLabel, g
                   <input
                     type="checkbox"
                     checked={checked}
-                    onChange={() => toggleOne(item.id)}
+                    onChange={() => toggleOne(item)}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
@@ -217,13 +226,21 @@ function CustomerGroupsPage() {
                 <label className="label">
                   Members <span className="text-gray-400 font-normal ml-1">({selectedIds.length} selected)</span>
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Selecting a parent company also selects all of its branches — you can then un-select individual branches if needed.
+                </p>
                 <MemberCheckboxList
                   allItems={allCustomers}
                   selectedIds={selectedIds}
                   setSelectedIds={setSelectedIds}
                   getLabel={c => c.name}
-                  getSubLabel={c => c.customerCode}
+                  getSubLabel={c => c.branchCount > 0
+                    ? `${c.customerCode} • ${c.branchCount} branch${c.branchCount === 1 ? '' : 'es'}`
+                    : c.customerCode}
                   searchPlaceholder="Search customers…"
+                  getCascadeIds={c => allCustomers
+                    .filter(x => x.parentCustomerId === c.id)
+                    .map(x => x.id)}
                 />
               </div>
 

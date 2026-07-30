@@ -26,6 +26,22 @@ const COLUMNS = [
   { key: 'salesRep',  label: 'Rep',      render: (_, r) => r.salesRep?.fullName ?? '—' },
   { key: 'status',    label: 'Status',   render: (v) => <StatusBadge status={v} /> },
   { key: 'createdAt', label: 'Date',     render: (v) => v ? new Date(v).toLocaleDateString() : '—' },
+  { key: 'pdf', label: '', render: (_, row) => (
+      <button
+        onClick={async () => {
+          try {
+            const res = await returnApi.pdf(row.id);
+            const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            window.open(url, '_blank');
+          } catch (err) {
+            toast.error('Failed to load PDF: ' + (err.response?.data?.detail || err.message));
+          }
+        }}
+        className="text-green-600 text-xs hover:text-green-800 font-medium"
+      >
+        PDF ↗
+      </button>
+    ) },
 ];
 
 function ReturnsPage() {

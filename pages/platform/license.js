@@ -52,16 +52,18 @@ function LicensePage() {
   });
 
   const { register, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm();
-  const sfaEnabled = watch('sfaEnabled');
-  const posEnabled = watch('posEnabled');
+  const sfaEnabled     = watch('sfaEnabled');
+  const posEnabled     = watch('posEnabled');
+  const financeEnabled = watch('financeEnabled');
 
   useEffect(() => {
     if (license) {
       reset({
-        sfaEnabled: license.sfaEnabled,
-        posEnabled: license.posEnabled,
-        clientName: license.clientName ?? '',
-        note:       license.note ?? '',
+        sfaEnabled:     license.sfaEnabled,
+        posEnabled:     license.posEnabled,
+        financeEnabled: license.financeEnabled,
+        clientName:     license.clientName ?? '',
+        note:           license.note ?? '',
       });
     }
   }, [license, reset]);
@@ -113,6 +115,13 @@ function LicensePage() {
             description="Point of Sale terminal and reporting, Accounts (Expenses, Ledger, Profit &amp; Loss)."
             enabled={!!posEnabled}
             onChange={(v) => setValue('posEnabled', v, { shouldDirty: true })}
+            disabled={saveMutation.isPending}
+          />
+          <PackageRow
+            label="Finance"
+            description="Financial Management — General Ledger, Bank Accounts, Accounts Payable, Accounts Receivable."
+            enabled={!!financeEnabled}
+            onChange={(v) => setValue('financeEnabled', v, { shouldDirty: true })}
             disabled={saveMutation.isPending}
           />
         </div>

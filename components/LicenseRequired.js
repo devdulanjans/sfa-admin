@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router';
 
-const PACKAGE_LABEL = { SFA: 'SFA', POS: 'POS' };
+const PACKAGE_LABEL = { SFA: 'SFA', POS: 'POS', FINANCE: 'Finance' };
 
 export default function LicenseRequired({ licensePackage }) {
   const router = useRouter();

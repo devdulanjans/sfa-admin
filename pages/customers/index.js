@@ -9,18 +9,32 @@ import { withAuth, useAuth } from '../../lib/auth';
 import { customerApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
-const COLUMNS = [
-  { key: 'customerCode',     label: 'Code',     width: 100 },
-  { key: 'name',             label: 'Name' },
-  { key: 'phone',            label: 'Phone' },
-  { key: 'location',         label: 'Location', render: (v) => v ?? '—' },
-  { key: 'placeOfSupplier',  label: 'Place of Supplier', render: (v) => v ?? '—' },
-  { key: 'categoryName',     label: 'Category', render: (v) => v ?? '—' },
-  { key: 'taxType',          label: 'Tax Type' },
-  { key: 'status',           label: 'Status',   render: (v) => <StatusBadge status={v} /> },
-  { key: 'actions',          label: '',         width: 140,
-    render: (_, row) => <RowActions row={row} /> },
-];
+function branchColumns(router) {
+  return [
+    { key: 'customerCode',     label: 'Code',     width: 100 },
+    { key: 'name',             label: 'Name', render: (v, row) => (
+      <>
+        {v}
+        {row.branchCount > 0 && (
+          <button
+            onClick={() => router.push(`/customers?parentId=${row.id}`)}
+            className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+          >
+            {row.branchCount} branch{row.branchCount === 1 ? '' : 'es'}
+          </button>
+        )}
+      </>
+    ) },
+    { key: 'phone',            label: 'Phone' },
+    { key: 'location',         label: 'Location', render: (v) => v ?? '—' },
+    { key: 'placeOfSupplier',  label: 'Place of Supplier', render: (v) => v ?? '—' },
+    { key: 'categoryName',     label: 'Category', render: (v) => v ?? '—' },
+    { key: 'taxType',          label: 'Tax Type' },
+    { key: 'status',           label: 'Status',   render: (v) => <StatusBadge status={v} /> },
+    { key: 'actions',          label: '',         width: 140,
+      render: (_, row) => <RowActions row={row} /> },
+  ];
+}
 
 function RowActions({ row }) {
   const router = useRouter();
@@ -216,25 +230,48 @@ function CustomersPage() {
   const [showImport, setShowImport] = useState(false);
   const [includeDeleted, setIncludeDeleted] = useState(false);
 
+  // Viewing a parent's branches (via the "N branches" pill) — a separate, unpaginated-by-
+  // search scoped view rather than the general list, so it only ever shows that parent's rows.
+  const parentId = router.query.parentId;
+
+  const { data: parentCustomer } = useQuery({
+    queryKey: ['customer', parentId],
+    queryFn: () => customerApi.getById(parentId).then(r => r.data),
+    enabled: !!parentId,
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', page, search, includeDeleted],
-    queryFn:  () => customerApi.list({ page, size: 20, search, includeDeleted }).then(r => r.data),
+    queryKey: parentId ? ['customer-branches-list', parentId, page] : ['customers', page, search, includeDeleted],
+    queryFn: () => parentId
+      ? customerApi.branches(parentId, { page, size: 20 }).then(r => r.data)
+      // topLevelOnly only while search is blank — typing a name/code still finds a branch directly.
+      : customerApi.list({ page, size: 20, search, includeDeleted, topLevelOnly: !search }).then(r => r.data),
     keepPreviousData: true,
   });
 
+  const columns = branchColumns(router);
+
   return (
-    <Layout title="Customers">
+    <Layout title={parentId ? `Branches of ${parentCustomer?.name ?? '…'}` : 'Customers'}>
+      {parentId && (
+        <button
+          onClick={() => router.push('/customers')}
+          className="mb-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+        >
+          ← All customers
+        </button>
+      )}
       <DataTable
-        columns={COLUMNS}
+        columns={columns}
         data={data?.content || []}
         loading={isLoading}
         totalPages={data?.totalPages || 1}
         currentPage={page}
         onPageChange={setPage}
-        onSearch={setSearch}
+        onSearch={parentId ? undefined : setSearch}
         actions={
           <>
-            {isAdmin && (
+            {!parentId && isAdmin && (
               <label className="flex items-center gap-1.5 text-xs text-gray-600 font-medium px-1">
                 <input
                   type="checkbox"
@@ -245,19 +282,26 @@ function CustomersPage() {
                 Show deleted
               </label>
             )}
-            <ExportButton
-              filename="customers"
-              exportFn={(format) => customerApi.export(format, { search })}
-            />
-            <button className="btn-secondary" onClick={() => setShowImport(true)}>
-              ⬆ Import
-            </button>
-            <button className="btn-primary" onClick={() => router.push('/customers/new')}>
-              + New Customer
+            {!parentId && (
+              <ExportButton
+                filename="customers"
+                exportFn={(format) => customerApi.export(format, { search })}
+              />
+            )}
+            {!parentId && (
+              <button className="btn-secondary" onClick={() => setShowImport(true)}>
+                ⬆ Import
+              </button>
+            )}
+            <button
+              className="btn-primary"
+              onClick={() => router.push(parentId ? `/customers/new?parentId=${parentId}` : '/customers/new')}
+            >
+              + New {parentId ? 'Branch' : 'Customer'}
             </button>
           </>
         }
-        emptyMessage="No customers found"
+        emptyMessage={parentId ? 'No branches yet' : 'No customers found'}
       />
 
       {showImport && (

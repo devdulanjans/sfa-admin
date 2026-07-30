@@ -22,6 +22,14 @@ const SETTING_META = {
     label:       'Show Free Promotion Items as Discount',
     description: 'When enabled, free items from Buy-X-Get-Y promotions are added to orders/invoices as a real priced line with the value shown as a Discount field, instead of a LKR 0.00 line. Applies to every customer and every order.',
   },
+  mileage_management_enabled: {
+    label:       'Mileage Management',
+    description: 'When enabled, sales reps must record start/end odometer mileage for each work session, and the Mileage report is available. When disabled, the feature is hidden everywhere.',
+  },
+  invoice_print_preview_enabled: {
+    label:       'Show Invoice Print Preview (Debug)',
+    description: 'When enabled, tapping Print Invoice on the mobile app shows a receipt preview before printing. When disabled (recommended), it prints directly to the Bluetooth printer with no preview. Intended for debugging only — leave off in production.',
+  },
 };
 
 const NUMBER_SETTING_META = {
@@ -70,7 +78,7 @@ function NumberSettingRow({ setting, meta, onSave, isPending }) {
 function GeneralSettingsPage() {
   const qc = useQueryClient();
 
-  const { data: settings, isLoading } = useQuery({
+  const { data: settings, isLoading, isError, error } = useQuery({
     queryKey: ['settings'],
     queryFn:  () => settingsApi.list().then(r => r.data),
   });
@@ -101,6 +109,10 @@ function GeneralSettingsPage() {
 
         {isLoading ? (
           <div className="text-center py-12 text-gray-400">Loading…</div>
+        ) : isError ? (
+          <div className="text-center py-12 text-sm text-red-500">
+            Failed to load settings: {error?.response?.data?.detail ?? error?.message ?? 'Unknown error'}
+          </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-50">
             {booleanSettings.length === 0 && numberSettings.length === 0 && (
