@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useEffect, useRef, useState } from 'react';
 import Layout from '../../components/Layout';
+import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import RecordCreditPaymentModal from '../../components/RecordCreditPaymentModal';
 import { withAuth, useAuth } from '../../lib/auth';
@@ -226,10 +227,14 @@ function CustomerDetailPage() {
   const [parentCustomer, setParentCustomer] = useState(null);
   const lockedParent = isNew && !!router.query.parentId;
 
-  const { data: branchesData } = useQuery({
-    queryKey: ['customer-branches', id],
-    queryFn: () => customerApi.branches(id).then(r => r.data),
+  const [branchPage, setBranchPage] = useState(0);
+  const [branchSearch, setBranchSearch] = useState('');
+
+  const { data: branchesData, isLoading: branchesLoading } = useQuery({
+    queryKey: ['customer-branches', id, branchPage, branchSearch],
+    queryFn: () => customerApi.branches(id, { page: branchPage, size: 10, search: branchSearch }).then(r => r.data),
     enabled: !!id && !isNew && !!customer && !customer.parentCustomerId,
+    keepPreviousData: true,
   });
   const branches = branchesData?.content ?? [];
 
@@ -752,38 +757,31 @@ function CustomerDetailPage() {
                 + Add Branch
               </button>
             </div>
-            {branchSummary?.branchCount > 0 ? (
-              <>
-                <p className="text-sm text-gray-600 mb-3">
-                  {branchSummary.branchCount} branch{branchSummary.branchCount === 1 ? '' : 'es'} · Total outstanding: LKR{' '}
-                  {formatAmount(branchSummary.totalOutstanding)}
-                </p>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-500 border-b">
-                      <th className="py-1.5">Name</th>
-                      <th className="py-1.5">Code</th>
-                      <th className="py-1.5">Status</th>
-                      <th className="py-1.5 text-right">Outstanding</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {branches.map(b => (
-                      <tr key={b.id} className="border-b border-gray-50">
-                        <td className="py-1.5">
-                          <Link href={`/customers/${b.id}`} className="text-blue-600 hover:underline">{b.name}</Link>
-                        </td>
-                        <td className="py-1.5">{b.customerCode}</td>
-                        <td className="py-1.5"><StatusBadge status={b.status} /></td>
-                        <td className="py-1.5 text-right tabular-nums">{formatAmount(b.currentBalance)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">No branches yet.</p>
+            {branchSummary?.branchCount > 0 && (
+              <p className="text-sm text-gray-600 mb-3">
+                {branchSummary.branchCount} branch{branchSummary.branchCount === 1 ? '' : 'es'} · Total outstanding: LKR{' '}
+                {formatAmount(branchSummary.totalOutstanding)}
+              </p>
             )}
+            <DataTable
+              columns={[
+                { key: 'name', label: 'Name', render: (v, row) => (
+                  <Link href={`/customers/${row.id}`} className="text-blue-600 hover:underline">{v}</Link>
+                ) },
+                { key: 'customerCode', label: 'Code' },
+                { key: 'status', label: 'Status', render: (v) => <StatusBadge status={v} /> },
+                { key: 'currentBalance', label: 'Outstanding', render: (v) => (
+                  <span className="tabular-nums">{formatAmount(v)}</span>
+                ) },
+              ]}
+              data={branches}
+              loading={branchesLoading}
+              totalPages={branchesData?.totalPages || 1}
+              currentPage={branchPage}
+              onPageChange={setBranchPage}
+              onSearch={(v) => { setBranchSearch(v); setBranchPage(0); }}
+              emptyMessage={branchSearch ? 'No branches match your search' : 'No branches yet.'}
+            />
           </div>
         )}
 

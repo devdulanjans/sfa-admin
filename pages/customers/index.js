@@ -230,8 +230,8 @@ function CustomersPage() {
   const [showImport, setShowImport] = useState(false);
   const [includeDeleted, setIncludeDeleted] = useState(false);
 
-  // Viewing a parent's branches (via the "N branches" pill) — a separate, unpaginated-by-
-  // search scoped view rather than the general list, so it only ever shows that parent's rows.
+  // Viewing a parent's branches (via the "N branches" pill) — a separate, scoped view
+  // rather than the general list, so it only ever shows that parent's rows.
   const parentId = router.query.parentId;
 
   const { data: parentCustomer } = useQuery({
@@ -241,9 +241,9 @@ function CustomersPage() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: parentId ? ['customer-branches-list', parentId, page] : ['customers', page, search, includeDeleted],
+    queryKey: parentId ? ['customer-branches-list', parentId, page, search] : ['customers', page, search, includeDeleted],
     queryFn: () => parentId
-      ? customerApi.branches(parentId, { page, size: 20 }).then(r => r.data)
+      ? customerApi.branches(parentId, { page, size: 20, search }).then(r => r.data)
       // topLevelOnly only while search is blank — typing a name/code still finds a branch directly.
       : customerApi.list({ page, size: 20, search, includeDeleted, topLevelOnly: !search }).then(r => r.data),
     keepPreviousData: true,
@@ -268,7 +268,7 @@ function CustomersPage() {
         totalPages={data?.totalPages || 1}
         currentPage={page}
         onPageChange={setPage}
-        onSearch={parentId ? undefined : setSearch}
+        onSearch={(v) => { setSearch(v); setPage(0); }}
         actions={
           <>
             {!parentId && isAdmin && (
