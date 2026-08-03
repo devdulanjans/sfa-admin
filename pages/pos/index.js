@@ -54,6 +54,9 @@ function printReceipt(data, copies = 1, companyProfile = null) {
       ].filter(Boolean).join(' · ')}
     </div>
   ` : '';
+  const discountTotal = data.items.reduce((sum, item) =>
+    sum + (item.unitPrice * item.quantity) * (item.discountPct || 0) / 100, 0);
+
   const itemRows = data.items.map(item => {
     const gross          = item.unitPrice * item.quantity;
     const discountAmount = gross * (item.discountPct || 0) / 100;
@@ -61,28 +64,27 @@ function printReceipt(data, copies = 1, companyProfile = null) {
     const name           = (item.productName || 'Item').slice(0, 28);
     const hasDiscount    = discountAmount > 0;
     return `
-      <tr><td colspan="2">${name}</td></tr>
+      <tr><td colspan="3" style="text-align:left">${name}</td></tr>
       <tr>
-        <td style="padding-left:8px;color:#555">
-          ${Number(item.quantity).toFixed(item.quantity % 1 === 0 ? 0 : 2)} × LKR ${formatAmount(item.unitPrice)}
-        </td>
-        <td class="r">${formatAmount(gross)}</td>
+        <td class="r" style="color:#555;padding-left:6px">${Number(item.quantity).toFixed(item.quantity % 1 === 0 ? 0 : 2)}</td>
+        <td class="r" style="color:#555;padding-left:6px">LKR ${formatAmount(item.unitPrice)}</td>
+        <td class="r" style="padding-left:6px">${formatAmount(gross)}</td>
       </tr>
       ${hasDiscount ? `
       <tr>
-        <td style="padding-left:8px;color:#555">Discount (${Number(item.discountPct).toFixed(1)}%)</td>
+        <td colspan="2" style="padding-left:8px;color:#555">වට්ටම (${Number(item.discountPct).toFixed(1)}%)</td>
         <td class="r" style="color:#555">-${formatAmount(discountAmount)}</td>
       </tr>
       <tr>
-        <td style="padding-left:8px;font-weight:bold">Item Total</td>
+        <td colspan="2" style="padding-left:8px;font-weight:bold">අයිතම එකතුව</td>
         <td class="r" style="font-weight:bold">${formatAmount(afterDiscount)}</td>
       </tr>` : ''}`;
   }).join('');
 
   const isCredit = data.paymentMethod === 'CREDIT';
-  const paidLabel = isCredit ? 'Paid Now' : 'Tendered';
+  const paidLabel = isCredit ? 'දැන් ගෙවූ මුදල' : 'ලැබුණු මුදල';
   const paidVal   = isCredit ? data.amountPaid : data.tendered;
-  const balLabel  = isCredit ? 'Balance Due' : 'Balance';
+  const balLabel  = isCredit ? 'ගෙවිය යුතු ඉතිරිය' : 'ඉතිරිය';
   const balVal    = isCredit ? data.balanceDue : data.change;
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -90,32 +92,37 @@ function printReceipt(data, copies = 1, companyProfile = null) {
     <style>
       @page { size: 80mm auto; margin: 4mm 3mm; }
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family:'Courier New',monospace; font-size:11px; width:72mm; line-height:1.5; }
+      body { font-family:'Iskoola Pota','Noto Sans Sinhala','Nirmala UI','Courier New',monospace; font-size:11px; width:72mm; line-height:1.6; }
       .c{text-align:center} .r{text-align:right} .b{font-weight:bold}
       .hr{border:none;border-top:1px dashed #000;margin:5px 0}
       table{width:100%;border-collapse:collapse} td{vertical-align:top}
       td:last-child{text-align:right;white-space:nowrap}
       .tr td{font-weight:bold;font-size:13px;padding-top:3px}
       .cb{border:2px solid #000;text-align:center;padding:6px 4px;margin:6px 0}
-      .cb .l{font-size:10px;letter-spacing:2px;text-transform:uppercase}
+      .cb .l{font-size:10px;letter-spacing:1px}
       .cb .a{font-size:22px;font-weight:bold;line-height:1.2}
+      .db{background:#f0f0f0;border:1px solid #000;text-align:center;padding:5px 4px;margin:6px 0}
+      .db .l{font-size:12px;font-weight:bold}
+      .db .a{font-size:16px;font-weight:bold;line-height:1.3}
     </style>
   </head><body>
     ${companyHeader}
-    <div class="c b" style="font-size:15px">RECEIPT</div>
+    <div class="c b" style="font-size:15px">බිල්පත</div>
     <div class="c">${now}</div>
-    <div class="c">Sale # ${data.saleNumber}</div>
+    <div class="c">විකුණුම් අංකය ${data.saleNumber}</div>
     <hr class="hr">
     <table>${itemRows}</table>
     <hr class="hr">
     <table>
-      <tr class="tr"><td>TOTAL</td><td>LKR ${formatAmount(data.total)}</td></tr>
+      <tr class="tr"><td>මුළු එකතුව</td><td>LKR ${formatAmount(data.total)}</td></tr>
       <tr><td>${paidLabel}</td><td>LKR ${formatAmount(paidVal)}</td></tr>
-      ${data.paymentMethod === 'CARD' && data.cardLast4 ? `<tr><td>Card</td><td>**** ${data.cardLast4}</td></tr>` : ''}
+      ${data.paymentMethod === 'CARD' && data.cardLast4 ? `<tr><td>කාඩ්පත</td><td>**** ${data.cardLast4}</td></tr>` : ''}
     </table>
+    ${discountTotal > 0 ? `
+    <div class="db"><div class="l">ඔබ ලැබූ ලාභය</div><div class="a">LKR ${formatAmount(discountTotal)}</div></div>` : ''}
     <div class="cb"><div class="l">${balLabel}</div><div class="a">LKR ${formatAmount(balVal)}</div></div>
     ${companyFooter}
-    <hr class="hr"><div class="c">Thank you!</div>
+    <hr class="hr"><div class="c">ස්තුතියි!</div>
   </body></html>`;
 
   for (let i = 0; i < copies; i++) {
@@ -500,6 +507,8 @@ function HeldBillsModal({ bills, onRecall, onDelete, onClose }) {
 
 function ConfirmModal({ data, printCopies, onPrintCopiesChange, onClose, companyProfile }) {
   const isCredit = data.paymentMethod === 'CREDIT';
+  const discountTotal = data.items.reduce((sum, item) =>
+    sum + (item.unitPrice * item.quantity) * (item.discountPct || 0) / 100, 0);
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose(); }
     window.addEventListener('keydown', onKey);
@@ -550,6 +559,13 @@ function ConfirmModal({ data, printCopies, onPrintCopiesChange, onClose, company
             </div>
           )}
         </div>
+        {/* Discount / savings — Sinhala label, highlighted */}
+        {discountTotal > 0 && (
+          <div className="mx-5 mt-3 rounded-xl border-2 border-blue-300 bg-blue-50 px-4 py-2.5 text-center">
+            <p className="mb-0.5 text-sm font-bold text-blue-800">ඔබ ලැබූ ලාභය</p>
+            <p className="text-lg font-extrabold tabular-nums text-blue-700">LKR {fmt(discountTotal)}</p>
+          </div>
+        )}
         {/* Balance — BIG */}
         <div className={`mx-5 my-4 rounded-xl border-2 px-4 py-5 text-center ${
           isCredit ? 'border-amber-400 bg-amber-50' : 'border-green-400 bg-green-50'
