@@ -3,7 +3,13 @@ import { useAuth } from '../lib/auth';
 
 export default function AccessDenied() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+
+  // withAuth redirects here via router.replace(), which overwrites the current history
+  // entry instead of pushing a new one — so router.back() from this page can land on
+  // whatever was open before login (or nowhere at all) rather than a real previous page.
+  // Only offer it when there's actual history to go back to.
+  const canGoBack = typeof window !== 'undefined' && window.history.length > 1;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -30,18 +36,26 @@ export default function AccessDenied() {
           necessary permissions granted to your account.
         </p>
 
-        <div className="flex gap-3 justify-center">
-          <button
-            onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Go Back
-          </button>
+        <div className="flex gap-3 justify-center flex-wrap">
+          {canGoBack && (
+            <button
+              onClick={() => router.back()}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Go Back
+            </button>
+          )}
           <button
             onClick={() => router.push('/')}
             className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium text-white hover:bg-blue-700"
           >
             Home
+          </button>
+          <button
+            onClick={logout}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Log Out
           </button>
         </div>
       </div>

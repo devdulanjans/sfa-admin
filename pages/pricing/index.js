@@ -190,6 +190,86 @@ function buildColumns(onEdit, onDelete) {
   ];
 }
 
+// ── Filter panel ────────────────────────────────────────────────────────────────
+const EMPTY_FILTERS = { customerId: '', customerGroupId: '', productId: '', startDate: '', endDate: '' };
+
+function FilterPanel({ filters, onChange, onClear, customers, customerGroups, products }) {
+  const active = Object.values(filters).filter(v => v !== '').length;
+
+  return (
+    <div className="card p-4 mb-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-gray-700">Filters</span>
+        {active > 0 && (
+          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+            {active} active
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1 block">Customer</label>
+          <Combobox
+            items={customers}
+            value={filters.customerId}
+            onChange={(v) => onChange({ ...filters, customerId: v })}
+            placeholder="Any customer…"
+            getLabel={c => c.name}
+            getSubLabel={c => c.customerCode}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1 block">Customer Group</label>
+          <Combobox
+            items={customerGroups}
+            value={filters.customerGroupId}
+            onChange={(v) => onChange({ ...filters, customerGroupId: v })}
+            placeholder="Any group…"
+            getLabel={g => g.name}
+            getSubLabel={g => `${g.memberCount} customer${g.memberCount === 1 ? '' : 's'}`}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1 block">Product</label>
+          <Combobox
+            items={products}
+            value={filters.productId}
+            onChange={(v) => onChange({ ...filters, productId: v })}
+            placeholder="Any product…"
+            getLabel={p => p.name}
+            getSubLabel={p => p.productCode}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1 block">From</label>
+          <input
+            type="date"
+            value={filters.startDate}
+            max={filters.endDate || undefined}
+            onChange={(e) => onChange({ ...filters, startDate: e.target.value })}
+            className="input"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1 block">To</label>
+          <input
+            type="date"
+            value={filters.endDate}
+            min={filters.startDate || undefined}
+            onChange={(e) => onChange({ ...filters, endDate: e.target.value })}
+            className="input"
+          />
+        </div>
+      </div>
+      {active > 0 && (
+        <button type="button" onClick={onClear} className="text-xs text-gray-500 hover:text-gray-700 font-medium">
+          Clear filters
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 function BatchPricingPage() {
   const qc = useQueryClient();
@@ -208,11 +288,23 @@ function BatchPricingPage() {
 
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const applyFilters = (f) => { setFilters(f); setPage(0); };
+  const clearFilters = () => { setFilters(EMPTY_FILTERS); setPage(0); };
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['batch-prices', page],
-    queryFn: () => pricingApi.listBatchPrices({ page, size: 20 }).then(r => r.data),
+    queryKey: ['batch-prices', page, filters],
+    queryFn: () => pricingApi.listBatchPrices({
+      page, size: 20,
+      customerId:      filters.customerId      || undefined,
+      customerGroupId: filters.customerGroupId || undefined,
+      productId:       filters.productId       || undefined,
+      startDate:       filters.startDate       || undefined,
+      endDate:         filters.endDate         || undefined,
+    }).then(r => r.data),
+    keepPreviousData: true,
   });
 
   const { data: products = [] } = useQuery({
@@ -365,6 +457,15 @@ function BatchPricingPage() {
 
   return (
     <Layout title="Batch Pricing">
+      <FilterPanel
+        filters={filters}
+        onChange={applyFilters}
+        onClear={clearFilters}
+        customers={customers}
+        customerGroups={customerGroups}
+        products={activeProducts}
+      />
+
       <DataTable
         columns={columns}
         data={data?.content || []}

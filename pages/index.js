@@ -20,6 +20,22 @@ const MODULE_ROUTES = [
   { key: 'MOD_USER_LIST',    url: '/users'        },
   { key: 'MOD_DISTRIBUTORS', url: '/distributors' },
   { key: 'MOD_SETTINGS_GENERAL', url: '/settings/general' },
+  // Finance/accounts modules — a FINANCE_USER's permissions are typically scoped to only
+  // these, so without them here they'd never match anything above and fall through to
+  // /no-access even though their account does have modules assigned.
+  { key: 'MOD_FIN_BS',            url: '/finance/balance-sheet'   },
+  { key: 'MOD_FIN_PL',            url: '/finance/profit-loss'     },
+  { key: 'MOD_FIN_LEDGER',        url: '/finance/general-ledger'  },
+  { key: 'MOD_FIN_PAYABLE',       url: '/finance/payable'         },
+  { key: 'MOD_FIN_RECEIVABLE',    url: '/finance/receivable'      },
+  { key: 'MOD_FIN_ASSETS',        url: '/finance/fixed-assets'    },
+  { key: 'MOD_FIN_BANK',          url: '/finance/bank'            },
+  { key: 'MOD_FIN_TAX',           url: '/finance/tax'             },
+  { key: 'MOD_ACC_LEDGER',        url: '/accounts/ledger'         },
+  { key: 'MOD_ACC_EXPENSES',      url: '/accounts/expenses'       },
+  { key: 'MOD_ACC_PROFIT_LOSS',   url: '/accounts/profit-loss'    },
+  { key: 'MOD_POS_DRAWER',        url: '/pos/drawer'              },
+  { key: 'MOD_POS_DAILY_REPORT',  url: '/pos/daily-report'        },
 ];
 
 export default function IndexPage() {
