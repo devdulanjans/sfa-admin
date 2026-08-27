@@ -27,8 +27,8 @@ const SETTING_META = {
     description: 'When enabled, sales reps must record start/end odometer mileage for each work session, and the Mileage report is available. When disabled, the feature is hidden everywhere.',
   },
   invoice_print_preview_enabled: {
-    label:       'Show Invoice Print Preview (Debug)',
-    description: 'When enabled, tapping Print Invoice on the mobile app shows a receipt preview before printing. When disabled (recommended), it prints directly to the Bluetooth printer with no preview. Intended for debugging only — leave off in production.',
+    label:       'Show Print Preview (Debug)',
+    description: 'When enabled, printing an Invoice, Damage Note, or Return Note on the mobile app shows a receipt preview before printing. When disabled (recommended), it prints directly to the Bluetooth printer with no preview. Intended for debugging only — leave off in production.',
   },
 };
 

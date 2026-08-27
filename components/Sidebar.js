@@ -189,7 +189,7 @@ const NAV = [
   },
   {
     label: 'Settings',
-    childKeys: ['MOD_SETTINGS_COMPANY_PROFILE', 'MOD_SETTINGS_GENERAL', 'MOD_SETTINGS_CATEGORIES', 'MOD_SETTINGS_UNITS'],
+    childKeys: ['MOD_SETTINGS_COMPANY_PROFILE', 'MOD_SETTINGS_GENERAL', 'MOD_SETTINGS_CATEGORIES', 'MOD_SETTINGS_UNITS', 'MOD_SETTINGS_REASONS'],
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
@@ -202,6 +202,7 @@ const NAV = [
       { href: '/settings/general',         label: 'General',          permKey: 'MOD_SETTINGS_GENERAL' },
       { href: '/settings/categories',      label: 'Categories',       permKey: 'MOD_SETTINGS_CATEGORIES' },
       { href: '/settings/units',           label: 'Units of Measure', permKey: 'MOD_SETTINGS_UNITS' },
+      { href: '/settings/reasons',         label: 'Return & Damage Reasons', permKey: 'MOD_SETTINGS_REASONS' },
     ],
   },
 ];
