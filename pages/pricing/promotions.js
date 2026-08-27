@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import { withAuth } from '../../lib/auth';
+import { useAccessibleTenants } from '../../lib/hooks';
 import { pricingApi, productApi, customerApi, customerGroupApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
@@ -172,6 +173,11 @@ function PromotionsPage() {
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
     defaultValues: { type: 'PERCENTAGE', isActive: true },
   });
+
+  // Only asked on create — a single-channel actor never needs to be asked (their one
+  // channel is implied either way), and an existing promotion's channel doesn't change.
+  const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
+    useAccessibleTenants({ enabled: showForm && !editingPromotion });
 
   const promoType     = watch('type');
   const isFreeProduct = promoType === 'FREE_PRODUCT';
@@ -463,6 +469,22 @@ function PromotionsPage() {
                 <input {...register('name', { required: true })} className="input" placeholder="e.g. Buy A Get B Free" />
                 {errors.name && <p className="text-xs text-red-500 mt-1">Name is required</p>}
               </div>
+
+              {needsChannelPicker && (
+                <div>
+                  <label className="label">Channel *</label>
+                  <select {...register('tenantId', { required: true })} className="input" disabled={tenantsLoading}>
+                    <option value="">{tenantsLoading ? 'Loading channels…' : 'Select a channel…'}</option>
+                    {accessibleTenants.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  {errors.tenantId && <p className="text-red-500 text-xs mt-1">Required — which channel does this promotion belong to?</p>}
+                  <p className="text-xs text-gray-500 mt-1">
+                    You manage more than one channel — pick which one this promotion belongs to.
+                  </p>
+                </div>
+              )}
 
               {/* Applies-to multi-select */}
               <div>

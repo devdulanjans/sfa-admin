@@ -38,6 +38,7 @@ function CompanyProfilePage() {
         registeredAddress:      profile.registeredAddress ?? '',
         operatingAddress:       profile.operatingAddress ?? '',
         taxId:                  profile.taxId ?? '',
+        registrationNumber:     profile.registrationNumber ?? '',
         vatRegistrationNumber:  profile.vatRegistrationNumber ?? '',
         vatRatePct:             profile.vatRatePct ?? '0',
         bankName:               profile.bankName ?? '',
@@ -151,11 +152,15 @@ function CompanyProfilePage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Tax / VAT">
-          <div className="grid grid-cols-3 gap-4">
+        <SectionCard title="Tax / VAT / Registration">
+          <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="label">Tax ID (TIN)</label>
               <input {...register('taxId')} className="input" />
+            </div>
+            <div>
+              <label className="label">Company Registration No.</label>
+              <input {...register('registrationNumber')} className="input" />
             </div>
             <div>
               <label className="label">VAT Registration No.</label>

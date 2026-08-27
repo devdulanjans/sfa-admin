@@ -47,8 +47,8 @@ export default function LoginPage() {
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', margin: 0 }}>SFA Admin</h1>
-          <p style={{ color: '#93c5fd', fontSize: '0.875rem', marginTop: 4 }}>Sales Force Automation System</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', margin: 0 }}>Iceman</h1>
+          <p style={{ color: '#93c5fd', fontSize: '0.875rem', marginTop: 4 }}>Invoice Management System</p>
         </div>
 
         {/* Card */}

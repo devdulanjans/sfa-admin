@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useAuth } from '../lib/auth';
+import { useAuth, ADMIN_IMPLICIT_PERMISSIONS } from '../lib/auth';
 import { APP_VERSION } from '../lib/version';
 import clsx from 'clsx';
 
@@ -15,6 +15,17 @@ const NAV = [
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
           d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+  },
+  {
+    href: '/tenants',
+    label: 'Channels',
+    permKey: 'MOD_TENANTS',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2M19 21H5m0 0H3m8-16h.01M11 9h.01M11 13h.01M11 17h.01M7 9h.01M7 13h.01M7 17h.01M15 9h.01M15 13h.01M15 17h.01" />
       </svg>
     ),
   },
@@ -263,12 +274,14 @@ const FINANCE_MODULES = new Set([
   'MOD_FIN_LEDGER', 'MOD_FIN_PAYABLE', 'MOD_FIN_RECEIVABLE', 'MOD_FIN_BANK',
   'MOD_FIN_TAX', 'MOD_FIN_ASSETS', 'MOD_FIN_PL', 'MOD_FIN_BS',
 ]);
+const MULTI_TENANT_MODULES = new Set(['MOD_TENANTS']);
 
-function packageAllowed(permKey, sfaEnabled, posEnabled, financeEnabled) {
+function packageAllowed(permKey, sfaEnabled, posEnabled, financeEnabled, multiTenantEnabled) {
   if (!permKey) return true;
   if (SFA_MODULES.has(permKey)) return sfaEnabled;
   if (POS_MODULES.has(permKey)) return posEnabled;
   if (FINANCE_MODULES.has(permKey)) return financeEnabled;
+  if (MULTI_TENANT_MODULES.has(permKey)) return multiTenantEnabled;
   return true;
 }
 
@@ -403,13 +416,15 @@ export default function Sidebar({ onClose }) {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const perms        = user?.permissions || [];
   const hasWildcard  = perms.includes('*');
-  const sfaEnabled     = user?.sfaEnabled ?? true;
-  const posEnabled     = user?.posEnabled ?? true;
-  const financeEnabled = user?.financeEnabled ?? false;
+  const sfaEnabled         = user?.sfaEnabled ?? true;
+  const posEnabled         = user?.posEnabled ?? true;
+  const financeEnabled     = user?.financeEnabled ?? false;
+  const multiTenantEnabled = user?.multiTenantEnabled ?? true;
 
   function canSee(permKey) {
-    if (!packageAllowed(permKey, sfaEnabled, posEnabled, financeEnabled)) return false;
+    if (!packageAllowed(permKey, sfaEnabled, posEnabled, financeEnabled, multiTenantEnabled)) return false;
     if (!permKey) return true;
+    if (user?.role === 'ADMIN' && ADMIN_IMPLICIT_PERMISSIONS.has(permKey)) return true;
     return isSuperAdmin || hasWildcard || perms.includes(permKey);
   }
 

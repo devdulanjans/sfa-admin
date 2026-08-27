@@ -4,12 +4,14 @@ import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
-import { withAuth } from '../../lib/auth';
+import { withAuth, useAuth } from '../../lib/auth';
 import { productApi } from '../../lib/api';
 import { formatAmount } from '../../lib/format';
 
 function ProductsPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const multiTenantEnabled = user?.multiTenantEnabled ?? true;
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
 
@@ -24,6 +26,12 @@ function ProductsPage() {
     { key: 'barcode',          label: 'Barcode',  render: (v) => v ? <span className="font-mono text-xs text-gray-500">{v}</span> : <span className="text-gray-400">—</span> },
     { key: 'name',             label: 'Name',     render: (v) => <span className="font-medium">{v}</span> },
     { key: 'categoryName',     label: 'Category', render: (v) => v ?? <span className="text-gray-400">—</span> },
+    ...(multiTenantEnabled ? [{
+      key: 'tenantName', label: 'Channel',
+      render: (v) => v
+        ? <span className="text-xs font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">{v}</span>
+        : <span className="text-gray-400">—</span>,
+    }] : []),
     { key: 'unitAbbreviation', label: 'Unit',     render: (v) => v
         ? <span className="font-mono text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{v}</span>
         : <span className="text-gray-400">—</span> },
