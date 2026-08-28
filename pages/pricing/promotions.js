@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
@@ -30,6 +30,15 @@ const FIELD_LABELS = {
   'Customer Group': 'Customer Group',
   'Product Group':  'Product Group',
 };
+
+function useDebounce(value, delay = 250) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 // ── History modal ─────────────────────────────────────────────────────────────
 
@@ -191,9 +200,11 @@ function PromotionsPage() {
   });
   const allProducts = productsData?.content || [];
 
+  const debouncedCustomerSearch = useDebounce(customerSearch);
+
   const { data: customersData } = useQuery({
-    queryKey: ['customers-picker'],
-    queryFn: () => customerApi.list({ page: 0, size: 300 }).then(r => r.data),
+    queryKey: ['customers-picker', debouncedCustomerSearch],
+    queryFn: () => customerApi.list({ page: 0, size: 30, search: debouncedCustomerSearch || undefined }).then(r => r.data),
     enabled: showForm,
     staleTime: 60_000,
   });
@@ -231,12 +242,8 @@ function PromotionsPage() {
     : allProducts
   ).filter(p => !freeProduct || p.id !== freeProduct.id).slice(0, 30);
 
-  const filteredCustomers = (customerSearch.trim()
-    ? allCustomers.filter(c =>
-        c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
-        c.customerCode?.toLowerCase().includes(customerSearch.toLowerCase()))
-    : allCustomers
-  ).slice(0, 30);
+  // Search is server-side (customersData already reflects debouncedCustomerSearch).
+  const filteredCustomers = allCustomers;
 
   const filteredCustomerGroups = (customerGroupSearch.trim()
     ? allCustomerGroups.filter(g => g.name?.toLowerCase().includes(customerGroupSearch.toLowerCase()))
@@ -587,7 +594,7 @@ function PromotionsPage() {
                       {customerDropdown && (
                         <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                           {filteredCustomers.length === 0
-                            ? <p className="px-3 py-4 text-sm text-gray-400 text-center">{allCustomers.length === 0 ? 'Loading…' : 'No matching customers'}</p>
+                            ? <p className="px-3 py-4 text-sm text-gray-400 text-center">{customersData === undefined ? 'Loading…' : 'No matching customers'}</p>
                             : filteredCustomers.map(c => (
                                 <button key={c.id} type="button"
                                   onMouseDown={() => { setSelectedCustomer(c); setCustomerSearch(''); setCustomerDropdown(false); }}
