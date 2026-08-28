@@ -9,6 +9,19 @@ import { withAuth, useAuth } from '../../lib/auth';
 import { customerApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
+// Some legacy customer records have "ICE TUBE" baked into the location text
+// (e.g. "ICE TUBE - Colombo") from the old data source — strip it for display,
+// along with whatever separator was left dangling next to it.
+function formatLocation(v) {
+  if (!v) return '—';
+  const stripped = v
+    .replace(/ice\s*tube/gi, '')
+    .replace(/^[\s,\-\/]+|[\s,\-\/]+$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return stripped || '—';
+}
+
 function branchColumns(router) {
   return [
     { key: 'customerCode',     label: 'Code',     width: 100 },
@@ -26,7 +39,7 @@ function branchColumns(router) {
       </>
     ) },
     { key: 'phone',            label: 'Phone' },
-    { key: 'location',         label: 'Location', render: (v) => v ?? '—' },
+    { key: 'location',         label: 'Location', render: formatLocation },
     { key: 'placeOfSupplier',  label: 'Place of Supplier', render: (v) => v ?? '—' },
     { key: 'categoryName',     label: 'Category', render: (v) => v ?? '—' },
     { key: 'taxType',          label: 'Tax Type' },
