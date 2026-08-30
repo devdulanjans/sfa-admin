@@ -38,11 +38,13 @@ function Combobox({ items, value, onChange, placeholder, getLabel, getSubLabel, 
 
   const pool = asyncSearch ? (asyncItems ?? []) : (items ?? []);
 
-  // Sync selection when value changes (handles edit pre-fill + clear)
+  // Sync selection when value changes (handles edit pre-fill + external clear).
+  // Only touches `selected`, never `query` — clearing the typed search text here
+  // would wipe it out on every debounced re-fetch while asyncSearch is active and
+  // no selection has been made yet (see select()/clear() for query resets).
   useEffect(() => {
     if (!value) {
-      setSelected(null);
-      setQuery('');
+      if (selected) setSelected(null);
     } else if (!selected || selected.id !== value) {
       const found = pool.find(i => i.id === value) ?? (initialItem?.id === value ? initialItem : null);
       if (found) setSelected(found);
