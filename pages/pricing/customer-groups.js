@@ -102,9 +102,17 @@ function CustomerGroupsPage() {
   });
   const groups = data?.content ?? [];
 
+  // The checkbox list (and its parent->branches cascade-select) needs the FULL
+  // customer list loaded, not just a page — a fixed size cap here silently drops
+  // customers past it from search once the real count grows past that number.
+  // Probe the total first, then fetch exactly that many in one go.
   const { data: customersData } = useQuery({
     queryKey: ['customers-picker'],
-    queryFn: () => customerApi.list({ size: 1000 }).then(r => r.data),
+    queryFn: async () => {
+      const probe = await customerApi.list({ size: 1 }).then(r => r.data);
+      const total = probe.totalElements ?? probe.content?.length ?? 1000;
+      return customerApi.list({ size: Math.max(total, 1) }).then(r => r.data);
+    },
     enabled: showForm,
     staleTime: 60_000,
   });
