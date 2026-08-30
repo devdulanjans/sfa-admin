@@ -8,12 +8,35 @@ import { pricingApi, productApi, customerApi, customerGroupApi, productGroupApi 
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
 
+function useDebounced(value, delay = 250) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
 // ── Searchable combobox ────────────────────────────────────────────────────────
-function Combobox({ items, value, onChange, placeholder, getLabel, getSubLabel, error }) {
+// Pass `asyncSearch` (query string -> Promise<items>) for lists too large to load
+// and filter client-side (e.g. all customers) — it's queried server-side, debounced,
+// instead of filtering the `items` prop. `initialItem` pre-fills the label for an
+// existing `value` (e.g. when editing) without needing it to appear in a search result.
+function Combobox({ items, value, onChange, placeholder, getLabel, getSubLabel, error, asyncSearch, asyncKey, initialItem }) {
   const [query, setQuery]       = useState('');
   const [open, setOpen]         = useState(false);
   const [selected, setSelected] = useState(null);
   const ref = useRef(null);
+  const debouncedQuery = useDebounced(query);
+
+  const { data: asyncItems } = useQuery({
+    queryKey: [asyncKey, debouncedQuery],
+    queryFn: () => asyncSearch(debouncedQuery),
+    enabled: !!asyncSearch,
+    staleTime: 30_000,
+  });
+
+  const pool = asyncSearch ? (asyncItems ?? []) : (items ?? []);
 
   // Sync selection when value changes (handles edit pre-fill + clear)
   useEffect(() => {
@@ -21,10 +44,10 @@ function Combobox({ items, value, onChange, placeholder, getLabel, getSubLabel, 
       setSelected(null);
       setQuery('');
     } else if (!selected || selected.id !== value) {
-      const found = (items ?? []).find(i => i.id === value);
+      const found = pool.find(i => i.id === value) ?? (initialItem?.id === value ? initialItem : null);
       if (found) setSelected(found);
     }
-  }, [value, items]);
+  }, [value, pool, initialItem]);
 
   // Close on outside click
   useEffect(() => {
@@ -36,11 +59,13 @@ function Combobox({ items, value, onChange, placeholder, getLabel, getSubLabel, 
   }, []);
 
   const q = query.toLowerCase();
-  const filtered = (items ?? []).filter(item =>
-    !q ||
-    getLabel(item).toLowerCase().includes(q) ||
-    (getSubLabel && getSubLabel(item).toLowerCase().includes(q))
-  ).slice(0, 30);
+  const filtered = asyncSearch
+    ? pool.slice(0, 30)
+    : pool.filter(item =>
+        !q ||
+        getLabel(item).toLowerCase().includes(q) ||
+        (getSubLabel && getSubLabel(item).toLowerCase().includes(q))
+      ).slice(0, 30);
 
   function select(item) {
     setSelected(item);
@@ -193,7 +218,7 @@ function buildColumns(onEdit, onDelete) {
 // ── Filter panel ────────────────────────────────────────────────────────────────
 const EMPTY_FILTERS = { customerId: '', customerGroupId: '', productId: '', startDate: '', endDate: '' };
 
-function FilterPanel({ filters, onChange, onClear, customers, customerGroups, products }) {
+function FilterPanel({ filters, onChange, onClear, searchCustomers, customerGroups, products }) {
   const active = Object.values(filters).filter(v => v !== '').length;
 
   return (
@@ -210,7 +235,8 @@ function FilterPanel({ filters, onChange, onClear, customers, customerGroups, pr
         <div>
           <label className="text-xs font-medium text-gray-500 mb-1 block">Customer</label>
           <Combobox
-            items={customers}
+            asyncSearch={searchCustomers}
+            asyncKey="customers-picker"
             value={filters.customerId}
             onChange={(v) => onChange({ ...filters, customerId: v })}
             placeholder="Any customer…"
@@ -315,13 +341,13 @@ function BatchPricingPage() {
     }),
   });
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers-all'],
-    queryFn: () => customerApi.list({ size: 1000 }).then(r => {
+  // Customer list is too large to load and filter client-side — search it server-side instead.
+  function searchCustomers(search) {
+    return customerApi.list({ search: search || undefined, size: 30 }).then(r => {
       const d = r.data;
       return Array.isArray(d) ? d : (d.content ?? []);
-    }),
-  });
+    });
+  }
 
   const { data: productGroups = [] } = useQuery({
     queryKey: ['product-groups-all'],
@@ -461,7 +487,7 @@ function BatchPricingPage() {
         filters={filters}
         onChange={applyFilters}
         onClear={clearFilters}
-        customers={customers}
+        searchCustomers={searchCustomers}
         customerGroups={customerGroups}
         products={activeProducts}
       />
@@ -571,7 +597,9 @@ function BatchPricingPage() {
                 </div>
                 {customerTarget === 'customer' && (
                   <Combobox
-                    items={customers}
+                    asyncSearch={searchCustomers}
+                    asyncKey="customers-picker"
+                    initialItem={editingRule?.customer ?? null}
                     value={customerId}
                     onChange={setCustomerId}
                     placeholder="Search customer…"
