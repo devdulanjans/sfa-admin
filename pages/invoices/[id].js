@@ -93,6 +93,7 @@ function InvoiceDetailPage() {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfError, setPdfError] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [exportingSecondary, setExportingSecondary] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
 
   const { data: invoice } = useQuery({
@@ -172,6 +173,24 @@ function InvoiceDetailPage() {
     }
   };
 
+  const handleExportSecondarySales = async () => {
+    setExportingSecondary(true);
+    try {
+      const { data } = await invoiceApi.exportSecondarySales(id);
+      const url = URL.createObjectURL(new Blob([data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${invoice?.invoiceNumber || id}-secondary-sales.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Exported secondary sales data');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingSecondary(false);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: '#eee' }}>
       <style>{PRINT_CSS}</style>
@@ -202,6 +221,11 @@ function InvoiceDetailPage() {
           border: 'none', borderRadius: 4, cursor: (invoice && !exporting) ? 'pointer' : 'default',
           opacity: (invoice && !exporting) ? 1 : 0.6, fontWeight: 600, fontSize: 13,
         }}>{exporting ? 'Exporting…' : '⬇ Export Excel (full detail)'}</button>
+        <button onClick={handleExportSecondarySales} disabled={!invoice || exportingSecondary} style={{
+          padding: '6px 14px', background: '#455a64', color: '#fff',
+          border: 'none', borderRadius: 4, cursor: (invoice && !exportingSecondary) ? 'pointer' : 'default',
+          opacity: (invoice && !exportingSecondary) ? 1 : 0.6, fontWeight: 600, fontSize: 13,
+        }}>{exportingSecondary ? 'Exporting…' : '⬇ Export Excel (secondary sales)'}</button>
         {canRecordPayment && (
           <button onClick={() => setShowPayment(true)} style={{
             padding: '6px 14px', background: '#00897b', color: '#fff',

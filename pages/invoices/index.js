@@ -465,6 +465,18 @@ function InvoicesPage() {
               ...(filters.dueFrom         && { dueFrom:     filters.dueFrom }),
               ...(filters.dueTo           && { dueTo:       filters.dueTo }),
             })}
+            secondaryExportFn={() => invoiceApi.exportSecondarySalesBulk({
+              ...(filters.invoiceNo       && { invoiceNo:   filters.invoiceNo }),
+              ...(filters.orderNo         && { orderNo:     filters.orderNo }),
+              ...(filters.customer?.value  && { customerId:  filters.customer.value }),
+              ...(filters.salesRep?.value  && { salesRepId:  filters.salesRep.value }),
+              ...(filters.createdFrom     && { createdFrom: filters.createdFrom }),
+              ...(filters.createdTo       && { createdTo:   filters.createdTo }),
+              ...(filters.issuedFrom      && { issuedFrom:  filters.issuedFrom }),
+              ...(filters.issuedTo        && { issuedTo:    filters.issuedTo }),
+              ...(filters.dueFrom         && { dueFrom:     filters.dueFrom }),
+              ...(filters.dueTo           && { dueTo:       filters.dueTo }),
+            })}
           />
         }
         emptyMessage="No invoices found"

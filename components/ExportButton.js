@@ -3,7 +3,11 @@ import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { reportApi } from '../lib/api';
 
-export default function ExportButton({ params = {}, filename = 'export', exportFn, detailedExportFn, detailedLabel = 'XLSX — Full Detail' }) {
+export default function ExportButton({
+  params = {}, filename = 'export', exportFn,
+  detailedExportFn, detailedLabel = 'XLSX — Full Detail',
+  secondaryExportFn, secondaryLabel = 'XLSX — Secondary Sales',
+}) {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, right: 0 });
@@ -41,17 +45,28 @@ export default function ExportButton({ params = {}, filename = 'export', exportF
     setLoading(true);
     setOpen(false);
     try {
-      const isDetailed = format === 'detailed';
+      const isDetailed  = format === 'detailed';
+      const isSecondary = format === 'secondary';
       const { data } = isDetailed
         ? await detailedExportFn()
+        : isSecondary
+        ? await secondaryExportFn()
         : exportFn ? await exportFn(format) : await reportApi.export({ ...params, format });
       const url  = URL.createObjectURL(new Blob([data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = isDetailed ? `${filename}-details.xlsx` : `${filename}.${format}`;
+      link.download = isDetailed
+        ? `${filename}-details.xlsx`
+        : isSecondary
+        ? `${filename}-secondary-sales.xlsx`
+        : `${filename}.${format}`;
       link.click();
       URL.revokeObjectURL(url);
-      toast.success(isDetailed ? 'Exported full details' : `Exported as ${format.toUpperCase()}`);
+      toast.success(
+        isDetailed ? 'Exported full details'
+        : isSecondary ? 'Exported secondary sales data'
+        : `Exported as ${format.toUpperCase()}`
+      );
     } catch {
       toast.error('Export failed');
     } finally {
@@ -92,6 +107,14 @@ export default function ExportButton({ params = {}, filename = 'export', exportF
               className="block w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100 last:rounded-b-lg"
             >
               {detailedLabel}
+            </button>
+          )}
+          {secondaryExportFn && (
+            <button
+              onClick={() => doExport('secondary')}
+              className="block w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100 last:rounded-b-lg"
+            >
+              {secondaryLabel}
             </button>
           )}
         </div>,
