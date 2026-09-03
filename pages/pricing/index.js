@@ -6,7 +6,14 @@ import DataTable from '../../components/DataTable';
 import { withAuth } from '../../lib/auth';
 import { pricingApi, productApi, customerApi, customerGroupApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
-import { formatAmount } from '../../lib/format';
+
+// Batch price rates can be defined down to 5 decimal places (very low per-unit prices
+// round away to 0.00 at the usual 2dp) — a dedicated formatter, distinct from the app-wide
+// formatAmount (used for money totals everywhere else), so this precision is actually visible.
+function formatPrice(value) {
+  const num = Number(value) || 0;
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 });
+}
 
 function useDebounced(value, delay = 250) {
   const [debounced, setDebounced] = useState(value);
@@ -187,7 +194,7 @@ function buildColumns(onEdit, onDelete) {
       label: 'Price (LKR)',
       render: (v) => (
         <span className="font-semibold text-gray-900">
-          {v != null ? `LKR ${formatAmount(v)}` : '—'}
+          {v != null ? `LKR ${formatPrice(v)}` : '—'}
         </span>
       ),
     },
@@ -638,11 +645,11 @@ function BatchPricingPage() {
                   <label className="label">Price (LKR) *</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="0.00001"
                     min="0"
                     {...register('price', { required: true, min: 0 })}
                     className="input"
-                    placeholder="0.00"
+                    placeholder="0.00000"
                   />
                   {errors.price && <p className="text-red-500 text-xs mt-1">Required</p>}
                 </div>
