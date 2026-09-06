@@ -30,6 +30,10 @@ const SETTING_META = {
     label:       'Show Print Preview (Debug)',
     description: 'When enabled, printing an Invoice, Damage Note, or Return Note on the mobile app shows a receipt preview before printing. When disabled (recommended), it prints directly to the Bluetooth printer with no preview. Intended for debugging only — leave off in production.',
   },
+  return_damage_price_qty_enabled: {
+    label:       'Show Price & Quantity on Return/Damage',
+    description: 'When enabled (default), the mobile app shows each product\'s unit price and line/total value when creating a Return or Damage request. When disabled, only the product name and quantity input are shown — quantity itself is still required either way.',
+  },
 };
 
 const NUMBER_SETTING_META = {
