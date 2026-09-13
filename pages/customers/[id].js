@@ -689,6 +689,23 @@ function CustomerDetailPage() {
               </div>
             </div>
 
+            <div className="rounded-lg border border-gray-200 p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" {...register('splitPromoInvoiceEnabled')}
+                  className="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Split Free Items onto a Separate Invoice</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    When enabled, printing an invoice for this customer (thermal receipt or A4 PDF) prints the
+                    paid items as usual, then prints any promotional free items as a second, full invoice-layout
+                    document valued at qty × price (no VAT — nothing is actually charged for them). The order and
+                    invoice in the system stay a single record either way. Enabling this on a head-office customer
+                    also applies it to all of that customer's branches, even branches with this switched off individually.
+                  </p>
+                </div>
+              </label>
+            </div>
+
             {visibilityRule === 'ASSIGNED' && user?.sfaEnabled && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <div className="flex items-center justify-between">
