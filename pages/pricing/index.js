@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import { withAuth } from '../../lib/auth';
+import { useAccessibleTenants } from '../../lib/hooks';
 import { pricingApi, productApi, customerApi, customerGroupApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
@@ -329,6 +330,11 @@ function BatchPricingPage() {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
+  // Only asked on create — a single-channel actor never needs to be asked (their one
+  // channel is implied either way), and an existing rule's channel doesn't change.
+  const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
+    useAccessibleTenants({ enabled: showForm && !editingRule });
+
   const { data, isLoading } = useQuery({
     queryKey: ['batch-prices', page, filters],
     queryFn: () => pricingApi.listBatchPrices({
@@ -536,6 +542,22 @@ function BatchPricingPage() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+              {needsChannelPicker && (
+                <div>
+                  <label className="label">Channel *</label>
+                  <select {...register('tenantId', { required: true })} className="input" disabled={tenantsLoading}>
+                    <option value="">{tenantsLoading ? 'Loading channels…' : 'Select a channel…'}</option>
+                    {accessibleTenants.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  {errors.tenantId && <p className="text-red-500 text-xs mt-1">Required — which channel does this price rule belong to?</p>}
+                  <p className="text-xs text-gray-500 mt-1">
+                    You manage more than one channel — pick which one this price rule belongs to.
+                  </p>
+                </div>
+              )}
 
               {/* Product */}
               <div>

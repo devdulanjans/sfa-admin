@@ -52,18 +52,20 @@ function LicensePage() {
   });
 
   const { register, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm();
-  const sfaEnabled     = watch('sfaEnabled');
-  const posEnabled     = watch('posEnabled');
-  const financeEnabled = watch('financeEnabled');
+  const sfaEnabled         = watch('sfaEnabled');
+  const posEnabled         = watch('posEnabled');
+  const financeEnabled     = watch('financeEnabled');
+  const multiTenantEnabled = watch('multiTenantEnabled');
 
   useEffect(() => {
     if (license) {
       reset({
-        sfaEnabled:     license.sfaEnabled,
-        posEnabled:     license.posEnabled,
-        financeEnabled: license.financeEnabled,
-        clientName:     license.clientName ?? '',
-        note:           license.note ?? '',
+        sfaEnabled:         license.sfaEnabled,
+        posEnabled:         license.posEnabled,
+        financeEnabled:     license.financeEnabled,
+        multiTenantEnabled: license.multiTenantEnabled,
+        clientName:         license.clientName ?? '',
+        note:               license.note ?? '',
       });
     }
   }, [license, reset]);
@@ -122,6 +124,13 @@ function LicensePage() {
             description="Financial Management — General Ledger, Bank Accounts, Accounts Payable, Accounts Receivable."
             enabled={!!financeEnabled}
             onChange={(v) => setValue('financeEnabled', v, { shouldDirty: true })}
+            disabled={saveMutation.isPending}
+          />
+          <PackageRow
+            label="Multi-Channel"
+            description="Run more than one business (channel) in this install — Super Admin creates channels, assigns customers/products/staff to each, and staff work in exactly one channel at a time."
+            enabled={!!multiTenantEnabled}
+            onChange={(v) => setValue('multiTenantEnabled', v, { shouldDirty: true })}
             disabled={saveMutation.isPending}
           />
         </div>

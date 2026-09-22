@@ -22,7 +22,7 @@ function formatLocation(v) {
   return stripped || '—';
 }
 
-function branchColumns(router) {
+function branchColumns(router, multiTenantEnabled) {
   return [
     { key: 'customerCode',     label: 'Code',     width: 100 },
     { key: 'name',             label: 'Name', render: (v, row) => (
@@ -43,6 +43,12 @@ function branchColumns(router) {
     { key: 'placeOfSupplier',  label: 'Place of Supplier', render: (v) => v ?? '—' },
     { key: 'categoryName',     label: 'Category', render: (v) => v ?? '—' },
     { key: 'taxType',          label: 'Tax Type' },
+    ...(multiTenantEnabled ? [{
+      key: 'tenantName', label: 'Channel',
+      render: (v) => v
+        ? <span className="text-xs font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">{v}</span>
+        : <span className="text-gray-400">—</span>,
+    }] : []),
     { key: 'status',           label: 'Status',   render: (v) => <StatusBadge status={v} /> },
     { key: 'actions',          label: '',         width: 140,
       render: (_, row) => <RowActions row={row} /> },
@@ -262,7 +268,7 @@ function CustomersPage() {
     keepPreviousData: true,
   });
 
-  const columns = branchColumns(router);
+  const columns = branchColumns(router, user?.multiTenantEnabled ?? true);
 
   return (
     <Layout title={parentId ? `Branches of ${parentCustomer?.name ?? '…'}` : 'Customers'}>

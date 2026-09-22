@@ -4,16 +4,20 @@ import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
-import { withAuth } from '../../lib/auth';
+import { withAuth, useAuth } from '../../lib/auth';
+import { useAccessibleTenants } from '../../lib/hooks';
 import { userApi, distributorApi, customerApi, customerGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 function UsersPage() {
   const qc = useQueryClient();
+  const { user: currentUser } = useAuth();
+  const multiTenantEnabled = currentUser?.multiTenantEnabled ?? true;
   const [page, setPage] = useState(0);
   const [filterDistributorId, setFilterDistributorId] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
+  const [resetPwUser, setResetPwUser] = useState(null);
 
   // ── Recovery accounts (platformowner / superadmin) — hidden from the list
   // above, view-only, revealed only with the correct recovery key ──────────
@@ -44,6 +48,16 @@ function UsersPage() {
   const eSelectedCustomerIds = eWatch('customerIds') || [];
   const eSelectedGroupIds    = eWatch('customerGroupIds') || [];
 
+  // ── Reset-password form (its own dedicated flow, not bundled into Edit User) ────
+  const {
+    register: pReg,
+    handleSubmit: pHandleSubmit,
+    reset: pReset,
+    watch: pWatch,
+    formState: { errors: pErrors },
+  } = useForm({ defaultValues: { forceChangeOnNextLogin: true } });
+  const pNewPassword = pWatch('newPassword');
+
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
     queryKey: ['users', page, filterDistributorId],
@@ -68,6 +82,11 @@ function UsersPage() {
     retry: 2,
     staleTime: 0,
   });
+
+  // Own channels only for a non-Super-Admin actor (e.g. an ADMIN managing two channels
+  // can only ever hand out those two) — GET /api/tenants (the full platform list) is
+  // Super-Admin-only, so this must go through /api/tenants/my for anyone else.
+  const { tenants: allTenants, isLoading: tenantsLoading } = useAccessibleTenants();
 
   const { data: customersData } = useQuery({
     queryKey: ['customers-all'],
@@ -144,6 +163,17 @@ function UsersPage() {
     },
   });
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, body }) => userApi.resetPassword(id, body),
+    onSuccess: () => {
+      toast.success('Password reset');
+      qc.invalidateQueries({ queryKey: ['users'] });
+      setResetPwUser(null);
+      pReset({ forceChangeOnNextLogin: true });
+    },
+    onError: (err) => toast.error(err.response?.data?.detail ?? 'Failed to reset password'),
+  });
+
   // ── Submit handlers ──────────────────────────────────────────────────────
   function onSubmit(data) {
     const payload = {
@@ -156,6 +186,9 @@ function UsersPage() {
         : [],
       customerGroupIds: isSalesRep && data.customerGroupIds
         ? (Array.isArray(data.customerGroupIds) ? data.customerGroupIds.filter(Boolean) : [data.customerGroupIds].filter(Boolean))
+        : [],
+      tenantIds: data.tenantIds
+        ? (Array.isArray(data.tenantIds) ? data.tenantIds.filter(Boolean) : [data.tenantIds].filter(Boolean))
         : [],
     };
     createMutation.mutate(payload);
@@ -175,7 +208,9 @@ function UsersPage() {
       customerGroupIds: eIsSalesRep && data.customerGroupIds
         ? (Array.isArray(data.customerGroupIds) ? data.customerGroupIds : [data.customerGroupIds]).filter(Boolean)
         : [],
-      password: data.password || null,
+      tenantIds: data.tenantIds
+        ? (Array.isArray(data.tenantIds) ? data.tenantIds : [data.tenantIds]).filter(Boolean)
+        : [],
     };
     updateMutation.mutate({ id: editUser.id, body: payload });
   }
@@ -189,12 +224,23 @@ function UsersPage() {
       distributorIds:   user.distributors?.map(d => d.id) ?? [],
       customerIds:      user.assignedCustomerIds ?? [],
       customerGroupIds: user.customerGroupIds ?? [],
-      password:         '',
+      tenantIds:        user.tenants?.map(t => t.id) ?? [],
     });
   }
 
-  function closeCreate() { setShowForm(false); reset(); }
-  function closeEdit()   { setEditUser(null);  eReset(); }
+  function onResetPasswordSubmit(data) {
+    resetPasswordMutation.mutate({
+      id: resetPwUser.id,
+      body: {
+        newPassword: data.newPassword,
+        forceChangeOnNextLogin: !!data.forceChangeOnNextLogin,
+      },
+    });
+  }
+
+  function closeCreate()  { setShowForm(false);   reset(); }
+  function closeEdit()    { setEditUser(null);     eReset(); }
+  function closeResetPw() { setResetPwUser(null);  pReset({ forceChangeOnNextLogin: true }); }
 
   // ── Table columns ─────────────────────────────────────────────────────────
   const columns = [
@@ -218,6 +264,22 @@ function UsersPage() {
         );
       },
     },
+    ...(multiTenantEnabled ? [{
+      key: 'tenants',
+      label: 'Channels',
+      render: (v) => {
+        if (!v?.length) return <span className="text-gray-400 text-xs">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {v.map(t => (
+              <span key={t.id} className="text-xs font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">
+                {t.name}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    }] : []),
     {
       key: 'customerAccessAll',
       label: 'Customer Access',
@@ -234,7 +296,22 @@ function UsersPage() {
         );
       },
     },
-    { key: 'status', label: 'Status', render: (v) => <StatusBadge status={v} /> },
+    {
+      key: 'status', label: 'Status',
+      render: (v, row) => (
+        <div className="flex items-center gap-1.5">
+          <StatusBadge status={v} />
+          {row.mustChangePassword && (
+            <span
+              className="text-xs bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-medium"
+              title="Must set a new password at next login"
+            >
+              Pending reset
+            </span>
+          )}
+        </div>
+      ),
+    },
     {
       key: 'actions', label: '',
       render: (_, row) => (
@@ -244,6 +321,12 @@ function UsersPage() {
             className="text-xs px-2 py-1 rounded font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
           >
             Edit
+          </button>
+          <button
+            onClick={() => setResetPwUser(row)}
+            className="text-xs px-2 py-1 rounded font-medium bg-teal-50 text-teal-700 hover:bg-teal-100"
+          >
+            Reset Password
           </button>
           <button
             onClick={() => toggleMutation.mutate(row.id)}
@@ -297,6 +380,24 @@ function UsersPage() {
             <div>
               <span className="text-sm font-medium text-gray-900">{d.name}</span>
               <span className="ml-2 text-xs font-mono text-gray-500">{d.code}</span>
+            </div>
+          </label>
+        ))}
+      </div>
+    );
+  }
+
+  function TenantCheckboxes({ reg, list, loading }) {
+    if (loading) return <p className="text-xs text-gray-400 mt-1">Loading channels…</p>;
+    if (!list.length) return <p className="text-xs text-gray-400 mt-1">No active channels available.</p>;
+    return (
+      <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-44 overflow-y-auto">
+        {list.map(t => (
+          <label key={t.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
+            <input type="checkbox" value={t.id} {...reg} className="rounded border-gray-300 text-amber-600" />
+            <div>
+              <span className="text-sm font-medium text-gray-900">{t.name}</span>
+              <span className="ml-2 text-xs font-mono text-gray-500">{t.code}</span>
             </div>
           </label>
         ))}
@@ -507,6 +608,17 @@ function UsersPage() {
                 {errors.roleId && <p className="text-red-500 text-xs mt-1">Required</p>}
               </div>
 
+              {multiTenantEnabled && (
+                <div>
+                  <label className="label">Assign Channels</label>
+                  <TenantCheckboxes
+                    reg={register('tenantIds')}
+                    list={allTenants}
+                    loading={tenantsLoading}
+                  />
+                </div>
+              )}
+
               {isSalesRole && (
                 <div>
                   <label className="label">Assign Distributors</label>
@@ -576,19 +688,6 @@ function UsersPage() {
               </div>
 
               <div>
-                <label className="label">New Password</label>
-                <input
-                  type="password"
-                  placeholder="Leave blank to keep current"
-                  {...eReg('password', {
-                    validate: v => !v || v.length >= 8 || 'Minimum 8 characters',
-                  })}
-                  className="input"
-                />
-                {eErrors.password && <p className="text-red-500 text-xs mt-1">{eErrors.password.message}</p>}
-              </div>
-
-              <div>
                 <label className="label">Role *</label>
                 <RoleSelect
                   reg={eReg('roleId', { required: true })}
@@ -599,6 +698,17 @@ function UsersPage() {
                 />
                 {eErrors.roleId && <p className="text-red-500 text-xs mt-1">Required</p>}
               </div>
+
+              {multiTenantEnabled && (
+                <div>
+                  <label className="label">Assign Channels</label>
+                  <TenantCheckboxes
+                    reg={eReg('tenantIds')}
+                    list={allTenants}
+                    loading={tenantsLoading}
+                  />
+                </div>
+              )}
 
               {eIsSalesRole && (
                 <div>
@@ -639,6 +749,60 @@ function UsersPage() {
                   {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
                 </button>
                 <button type="button" className="btn-secondary flex-1" onClick={closeEdit}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset Password modal — its own dedicated flow, separate from Edit User ── */}
+      {resetPwUser && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Reset Password</h2>
+              <span className="text-xs font-mono text-gray-400">{resetPwUser.username}</span>
+            </div>
+            <form onSubmit={pHandleSubmit(onResetPasswordSubmit)} className="space-y-3">
+              <div>
+                <label className="label">New Password *</label>
+                <input
+                  type="password"
+                  {...pReg('newPassword', { required: true, minLength: 8 })}
+                  className="input"
+                  autoComplete="new-password"
+                />
+                {pErrors.newPassword && <p className="text-red-500 text-xs mt-1">At least 8 characters</p>}
+              </div>
+
+              <div>
+                <label className="label">Confirm New Password *</label>
+                <input
+                  type="password"
+                  {...pReg('confirmPassword', {
+                    required: true,
+                    validate: (v) => v === pNewPassword || 'Passwords do not match',
+                  })}
+                  className="input"
+                  autoComplete="new-password"
+                />
+                {pErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{pErrors.confirmPassword.message}</p>}
+              </div>
+
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" {...pReg('forceChangeOnNextLogin')} className="mt-0.5 rounded border-gray-300 text-teal-600" />
+                <span className="text-xs text-gray-600">
+                  Require this account to set its own new password at next login
+                </span>
+              </label>
+
+              <div className="flex gap-2 pt-2">
+                <button type="submit" className="btn-primary flex-1" disabled={resetPasswordMutation.isPending}>
+                  {resetPasswordMutation.isPending ? 'Resetting…' : 'Reset Password'}
+                </button>
+                <button type="button" className="btn-secondary flex-1" onClick={closeResetPw}>
                   Cancel
                 </button>
               </div>

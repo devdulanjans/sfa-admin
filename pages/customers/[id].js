@@ -8,6 +8,7 @@ import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import RecordCreditPaymentModal from '../../components/RecordCreditPaymentModal';
 import { withAuth, useAuth } from '../../lib/auth';
+import { useAccessibleTenants } from '../../lib/hooks';
 import { customerApi, productApi, userApi, posApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
@@ -130,6 +131,10 @@ function CustomerDetailPage() {
   const qc = useQueryClient();
   const isNew = id === 'new';
   const { user } = useAuth();
+  // A single-channel actor never needs to be asked — their one channel is implied
+  // either way. Anyone managing more than one picks which this customer belongs to.
+  const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
+    useAccessibleTenants({ enabled: isNew });
 
   const [showPicker, setShowPicker]       = useState(false);
   const [selectedIds, setSelectedIds]     = useState([]);
@@ -548,6 +553,22 @@ function CustomerDetailPage() {
           )}
 
           <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-4">
+            {needsChannelPicker && (
+              <div>
+                <label className="label">Channel *</label>
+                <select {...register('tenantId', { required: true })} className="input" disabled={tenantsLoading}>
+                  <option value="">{tenantsLoading ? 'Loading channels…' : 'Select a channel…'}</option>
+                  {accessibleTenants.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                {errors.tenantId && <p className="text-red-500 text-xs mt-1">Required — which channel does this customer belong to?</p>}
+                <p className="text-xs text-gray-500 mt-1">
+                  You manage more than one channel — pick which one this customer belongs to.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Customer Code *</label>

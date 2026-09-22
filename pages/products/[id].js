@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import StatusBadge from '../../components/StatusBadge';
-import { withAuth } from '../../lib/auth';
+import { withAuth, useAuth } from '../../lib/auth';
+import { useAccessibleTenants } from '../../lib/hooks';
 import { productApi, categoryApi, unitApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
@@ -87,6 +88,12 @@ function ProductDetailPage() {
   const { id } = router.query;
   const qc = useQueryClient();
   const isNew = id === 'new';
+  const { user } = useAuth();
+  // A single-channel actor never needs to be asked — their one channel is implied
+  // either way. Anyone managing more than one (SUPER_ADMIN sees every channel; an
+  // ADMIN over several channels sees just its own) picks which this product belongs to.
+  const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
+    useAccessibleTenants({ enabled: isNew });
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [initialGroupIds, setInitialGroupIds] = useState([]);
 
@@ -185,10 +192,33 @@ function ProductDetailPage() {
           <h2 className="text-base font-semibold text-gray-900">
             {isNew ? 'New Product' : 'Edit Product'}
           </h2>
-          {product && <StatusBadge status={product.status} />}
+          <div className="flex items-center gap-2">
+            {!isNew && product?.tenantName && (
+              <span className="text-xs font-medium bg-amber-50 text-amber-700 px-2 py-0.5 rounded">
+                {product.tenantName}
+              </span>
+            )}
+            {product && <StatusBadge status={product.status} />}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-4">
+          {needsChannelPicker && (
+            <div>
+              <label className="label">Channel *</label>
+              <select {...register('tenantId', { required: true })} className="input" disabled={tenantsLoading}>
+                <option value="">{tenantsLoading ? 'Loading channels…' : 'Select a channel…'}</option>
+                {accessibleTenants.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              {errors.tenantId && <p className="text-red-500 text-xs mt-1">Required — which channel does this product belong to?</p>}
+              <p className="text-xs text-gray-500 mt-1">
+                You manage more than one channel — pick which one this product belongs to.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Product Code *</label>
