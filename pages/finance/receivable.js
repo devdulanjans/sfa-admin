@@ -104,7 +104,7 @@ function CustomerInvoicesDrilldown({ customer, bankAccounts, onClose, onRecordPa
                   <td className="py-1.5 text-right tabular-nums font-semibold">{fmt(inv.balance)}</td>
                   <td className="py-1.5 text-right">
                     <button onClick={() => onRecordPayment(inv)}
-                      className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100">
+                      className="rounded bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100">
                       Record Payment
                     </button>
                   </td>
@@ -148,7 +148,7 @@ function ReceivablePage() {
 
   const columns = [
     { key: 'customerName', label: 'Customer', render: (v, row) => (
-      <button className="text-blue-600 hover:underline" onClick={() => setDrilldownCustomer(row)}>{v}</button>
+      <button className="text-brand-600 hover:underline" onClick={() => setDrilldownCustomer(row)}>{v}</button>
     ) },
     { key: 'outstandingBalance', label: 'Outstanding Balance', render: (v) => <span className="font-semibold tabular-nums">{fmt(v)}</span> },
   ];

@@ -2,7 +2,7 @@ import clsx from 'clsx';
 
 export default function StatCard({ label, value, sub, icon, color = 'blue', trend }) {
   const colors = {
-    blue:  'bg-blue-50 text-blue-600',
+    blue:  'bg-brand-50 text-brand-600',
     green: 'bg-green-50 text-green-600',
     amber: 'bg-amber-50 text-amber-600',
     red:   'bg-red-50 text-red-600',

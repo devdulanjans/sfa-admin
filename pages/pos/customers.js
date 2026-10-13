@@ -33,7 +33,7 @@ function PosCustomersPage() {
     {
       key: 'actions', label: '',
       render: (_, row) => (
-        <Link href={`/customers/${row.id}`} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+        <Link href={`/customers/${row.id}`} className="text-xs text-brand-600 hover:text-brand-800 font-medium">
           View
         </Link>
       ),

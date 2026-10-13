@@ -1,19 +1,28 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
+import BulkAssignChannelModal from '../../components/BulkAssignChannelModal';
+import { ChannelChips } from '../../components/ChannelMultiSelect';
+import { useAccessibleTenants } from '../../lib/hooks';
 import { withAuth, useAuth } from '../../lib/auth';
 import { productApi } from '../../lib/api';
 import { formatAmount } from '../../lib/format';
 
 function ProductsPage() {
   const router = useRouter();
+  const qc = useQueryClient();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'SUPER_ADMIN';
   const multiTenantEnabled = user?.multiTenantEnabled ?? true;
+  const canBulkAssign = isAdmin && multiTenantEnabled;
+  const { tenants: channelTenants } = useAccessibleTenants({ enabled: multiTenantEnabled });
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', page, search],
@@ -27,10 +36,8 @@ function ProductsPage() {
     { key: 'name',             label: 'Name',     render: (v) => <span className="font-medium">{v}</span> },
     { key: 'categoryName',     label: 'Category', render: (v) => v ?? <span className="text-gray-400">—</span> },
     ...(multiTenantEnabled ? [{
-      key: 'tenantName', label: 'Channel',
-      render: (v) => v
-        ? <span className="text-xs font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">{v}</span>
-        : <span className="text-gray-400">—</span>,
+      key: 'tenantName', label: 'Channels',
+      render: (_, row) => <ChannelChips row={row} tenants={channelTenants} />,
     }] : []),
     { key: 'unitAbbreviation', label: 'Unit',     render: (v) => v
         ? <span className="font-mono text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{v}</span>
@@ -53,7 +60,7 @@ function ProductsPage() {
       render: (v) => (
         <button
           onClick={() => router.push(`/products/${v}`)}
-          className="text-blue-600 text-xs font-medium hover:text-blue-800"
+          className="text-brand-600 text-xs font-medium hover:text-brand-800"
         >
           Edit →
         </button>
@@ -63,6 +70,15 @@ function ProductsPage() {
 
   return (
     <Layout title="Products">
+      {canBulkAssign && selectedIds.size > 0 && (
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5">
+          <p className="text-sm font-medium text-brand-800">{selectedIds.size} product{selectedIds.size === 1 ? '' : 's'} selected</p>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={() => setSelectedIds(new Set())}>Clear</button>
+            <button className="btn-primary" onClick={() => setShowBulkAssign(true)}>Channels…</button>
+          </div>
+        </div>
+      )}
       <DataTable
         columns={columns}
         data={data?.content || []}
@@ -71,6 +87,9 @@ function ProductsPage() {
         currentPage={page}
         onPageChange={setPage}
         onSearch={setSearch}
+        selectable={canBulkAssign}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
         actions={
           <button className="btn-primary" onClick={() => router.push('/products/new')}>
             + New Product
@@ -78,6 +97,16 @@ function ProductsPage() {
         }
         emptyMessage="No products found"
       />
+
+      {showBulkAssign && (
+        <BulkAssignChannelModal
+          count={selectedIds.size}
+          entityLabel="product"
+          assignFn={(tenantIds, mode) => productApi.bulkAssignTenant(Array.from(selectedIds), tenantIds, mode)}
+          onClose={() => setShowBulkAssign(false)}
+          onDone={() => { setSelectedIds(new Set()); qc.invalidateQueries({ queryKey: ['products'] }); }}
+        />
+      )}
     </Layout>
   );
 }

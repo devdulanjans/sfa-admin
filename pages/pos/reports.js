@@ -110,7 +110,7 @@ function PosReportsPage() {
       render: (v) => (
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border
           ${v === 'CASH'   ? 'bg-green-50 text-green-700 border-green-200' :
-            v === 'CARD'   ? 'bg-blue-50  text-blue-700  border-blue-200'  :
+            v === 'CARD'   ? 'bg-brand-50  text-brand-700  border-brand-200'  :
                              'bg-amber-50 text-amber-700 border-amber-200'}`}>
           {v}
         </span>
@@ -140,9 +140,9 @@ function PosReportsPage() {
 
             <div className="relative">
               {customerId ? (
-                <div className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs">
-                  <span className="font-medium text-blue-800">{customerSearch}</span>
-                  <button onClick={() => { setCustomerId(''); setCustomerSearch(''); setPage(0); }} className="text-blue-400 hover:text-blue-700">✕</button>
+                <div className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-xs">
+                  <span className="font-medium text-brand-800">{customerSearch}</span>
+                  <button onClick={() => { setCustomerId(''); setCustomerSearch(''); setPage(0); }} className="text-brand-400 hover:text-brand-700">✕</button>
                 </div>
               ) : (
                 <input
@@ -159,7 +159,7 @@ function PosReportsPage() {
                   {customerResults.map(c => (
                     <button key={c.id} type="button"
                       onMouseDown={() => { setCustomerId(c.id); setCustomerSearch(c.name); setCustomerDropdown(false); setPage(0); }}
-                      className="flex w-full justify-between border-b border-gray-50 px-3 py-2 text-left text-sm last:border-0 hover:bg-blue-50">
+                      className="flex w-full justify-between border-b border-gray-50 px-3 py-2 text-left text-sm last:border-0 hover:bg-brand-50">
                       <span className="font-medium text-gray-800">{c.name}</span>
                       <span className="text-xs text-gray-400">{c.customerCode}</span>
                     </button>

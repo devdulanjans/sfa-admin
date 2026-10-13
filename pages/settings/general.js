@@ -34,6 +34,22 @@ const SETTING_META = {
     label:       'Show Price & Quantity on Return/Damage',
     description: 'When enabled (default), the mobile app shows each product\'s unit price and line/total value when creating a Return or Damage request. When disabled, only the product name and quantity input are shown — quantity itself is still required either way.',
   },
+  lead_auto_convert_to_customer: {
+    label:       'Automatically convert Lead into Customer',
+    description: 'When enabled, every lead a sales rep creates is converted into a customer immediately. When disabled (default), leads stay pending until a user with the "Convert Leads" permission (e.g. an ASM/RSM) approves the conversion from the Leads page.',
+  },
+  sales_routes_enabled: {
+    label:       'Apply Sales Routes to Sales Reps',
+    description: 'When enabled, a sales rep who has a route assigned for the day (Routes → Assign Route) sees only that route\'s customers in the mobile app, in stop order, with the route shown on their dashboard. Reps with no route that day still see all their customers. When disabled (default), routes are not applied to sales reps at all — you can still create and assign routes ahead of time.',
+  },
+  promotion_manual_selection: {
+    label:       'Let Sales Reps Choose Between Multiple Promotions',
+    description: 'When enabled (default), if more than one promotion applies to a product, the sales rep is shown all of them and must pick which one to apply. When disabled, the system applies the best match automatically: a discount promotion always prices the item, and a Buy-X-Get-Y promotion still independently grants its free item — both stack rather than one silently overriding the other.',
+  },
+  location_tracking_enabled: {
+    label:       'Track Sales Rep Location',
+    description: 'When enabled, the mobile app records the sales rep\'s GPS location continuously while they are logged in — in the foreground and in the background — and the server detects customer visits from it (geofencing). View the trails and visits in Routes → Field Tracking. When disabled, no location is recorded and uploads are ignored.',
+  },
 };
 
 const NUMBER_SETTING_META = {
@@ -42,6 +58,30 @@ const NUMBER_SETTING_META = {
     description: 'Default number of receipt copies printed per POS sale. Cashiers can still adjust the copy count for an individual sale.',
     min: 1,
     max: 10,
+  },
+  location_tracking_interval_seconds: {
+    label:       'Location Tracking Interval (seconds)',
+    description: 'How often the mobile app records a location while tracking is on. Lower values give a more detailed trail but use more battery and data. Default 30.',
+    min: 5,
+    max: 600,
+  },
+  location_tracking_distance_meters: {
+    label:       'Location Tracking Minimum Movement (metres)',
+    description: 'A new location is recorded only after the rep has moved at least this far (0 = record on every interval, even when standing still). Default 25.',
+    min: 0,
+    max: 1000,
+  },
+  geofence_radius_meters: {
+    label:       'Customer Geofence Radius (metres)',
+    description: 'A rep counts as "at" a customer when they are within this distance of the customer\'s saved location. Customers without a saved location are never detected. Default 100.',
+    min: 10,
+    max: 2000,
+  },
+  geofence_min_dwell_minutes: {
+    label:       'Minimum Visit Duration (minutes)',
+    description: 'How long a rep must stay inside a customer\'s geofence for it to count as a visit — filters out simply driving past. Default 2.',
+    min: 0,
+    max: 120,
   },
 };
 
@@ -150,8 +190,8 @@ function GeneralSettingsPage() {
                     disabled={updateMutation.isPending}
                     className={[
                       'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent',
-                      'transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-                      enabled ? 'bg-blue-600' : 'bg-gray-200',
+                      'transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
+                      enabled ? 'bg-brand-600' : 'bg-gray-200',
                     ].join(' ')}
                     role="switch"
                     aria-checked={enabled}

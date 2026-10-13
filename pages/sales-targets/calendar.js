@@ -117,9 +117,9 @@ function WorkingCalendarPage() {
                 <label
                   key={d.code}
                   className={`flex flex-col items-center justify-center gap-1 rounded-lg border px-2 py-3 cursor-pointer text-xs font-medium
-                    ${checked ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                    ${checked ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
                 >
-                  <input type="checkbox" checked={checked} onChange={() => toggleDay(d.code)} className="rounded border-gray-300 text-blue-600" />
+                  <input type="checkbox" checked={checked} onChange={() => toggleDay(d.code)} className="rounded border-gray-300 text-brand-600" />
                   {d.label}
                 </label>
               );

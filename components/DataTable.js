@@ -11,12 +11,33 @@ export default function DataTable({
   onSearch,
   actions,
   emptyMessage = 'No records found',
+  selectable = false,
+  selectedIds,
+  onSelectionChange,
 }) {
   const [searchValue, setSearchValue] = useState('');
 
   function handleSearch(e) {
     e.preventDefault();
     onSearch?.(searchValue);
+  }
+
+  const allOnPageSelected = selectable && data.length > 0 && data.every(row => selectedIds?.has(row.id));
+
+  function toggleRow(id) {
+    const next = new Set(selectedIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onSelectionChange?.(next);
+  }
+
+  function toggleAllOnPage() {
+    const next = new Set(selectedIds);
+    if (allOnPageSelected) {
+      data.forEach(row => next.delete(row.id));
+    } else {
+      data.forEach(row => next.add(row.id));
+    }
+    onSelectionChange?.(next);
   }
 
   return (
@@ -50,6 +71,16 @@ export default function DataTable({
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
+              {selectable && (
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={toggleAllOnPage}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"
+                  />
+                </th>
+              )}
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -65,6 +96,7 @@ export default function DataTable({
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
+                  {selectable && <td className="px-4 py-3" />}
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3">
                       <div className="h-4 bg-gray-200 rounded animate-pulse" />
@@ -74,13 +106,23 @@ export default function DataTable({
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-gray-400">
+                <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-4 py-12 text-center text-sm text-gray-400">
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
               data.map((row, i) => (
                 <tr key={row.id || i} className="hover:bg-gray-50 transition-colors">
+                  {selectable && (
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds?.has(row.id) ?? false}
+                        onChange={() => toggleRow(row.id)}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"
+                      />
+                    </td>
+                  )}
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                       {col.render ? col.render(row[col.key], row) : row[col.key] ?? '—'}

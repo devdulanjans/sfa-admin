@@ -7,6 +7,7 @@ import { withAuth, useAuth } from '../../lib/auth';
 import { orderApi, invoiceApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
+import SendToCustomerModal from '../../components/SendToCustomerModal';
 
 function OrderDetailPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ function OrderDetailPage() {
   const qc = useQueryClient();
   const { hasRole } = useAuth();
   const [exporting, setExporting] = useState(false);
+  const [showSend, setShowSend] = useState(false);
 
   async function exportDetails() {
     setExporting(true);
@@ -132,7 +134,7 @@ function OrderDetailPage() {
                 <td colSpan={5} className="px-4 py-2.5 text-right text-gray-600">Tax Total</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">LKR {formatAmount(order.taxAmount)}</td>
               </tr>
-              <tr className="text-base font-bold text-blue-700">
+              <tr className="text-base font-bold text-brand-700">
                 <td colSpan={5} className="px-4 py-3 text-right">Total</td>
                 <td className="px-4 py-3 text-right tabular-nums">LKR {formatAmount(order.total)}</td>
               </tr>
@@ -157,11 +159,24 @@ function OrderDetailPage() {
               {cancelMutation.isPending ? 'Cancelling…' : 'Cancel Order'}
             </button>
           )}
+          {order.status !== 'DRAFT' && order.status !== 'CANCELLED' && (
+            <button className="btn-secondary" onClick={() => setShowSend(true)}>
+              ✉ Send to Customer
+            </button>
+          )}
           <button className="btn-secondary" onClick={exportDetails} disabled={exporting}>
             {exporting ? 'Exporting…' : '⬇ Export Excel (full detail)'}
           </button>
           <button className="btn-secondary" onClick={() => router.back()}>Back</button>
         </div>
+        {showSend && (
+          <SendToCustomerModal
+            type="order"
+            id={id}
+            number={order.orderNumber}
+            onClose={() => setShowSend(false)}
+          />
+        )}
       </div>
     </Layout>
   );

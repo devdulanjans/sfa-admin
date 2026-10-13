@@ -34,7 +34,7 @@ export default function LicenseRequired({ licensePackage }) {
           </button>
           <button
             onClick={() => router.push('/')}
-            className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium text-white hover:bg-blue-700"
+            className="px-4 py-2 bg-brand-600 rounded-lg text-sm font-medium text-white hover:bg-brand-700"
           >
             Home
           </button>

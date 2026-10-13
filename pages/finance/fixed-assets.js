@@ -186,7 +186,7 @@ function FixedAssetsPage() {
   const columns = [
     { key: 'assetCode', label: 'Code' },
     { key: 'name', label: 'Name', render: (v, row) => (
-      <button className="text-blue-600 hover:underline" onClick={() => setHistoryAsset(row)}>{v}</button>
+      <button className="text-brand-600 hover:underline" onClick={() => setHistoryAsset(row)}>{v}</button>
     ) },
     { key: 'category', label: 'Category', render: (v) => v || <span className="text-gray-400">—</span> },
     { key: 'purchaseCost', label: 'Cost', render: (v) => <span className="tabular-nums">{fmt(v)}</span> },

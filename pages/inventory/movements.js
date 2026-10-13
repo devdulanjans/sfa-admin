@@ -7,7 +7,7 @@ import { inventoryApi } from '../../lib/api';
 import { formatAmount } from '../../lib/format';
 
 const TYPE_COLORS = {
-  ADJUSTMENT:      'bg-blue-50   text-blue-700  border-blue-200',
+  ADJUSTMENT:      'bg-brand-50   text-brand-700  border-brand-200',
   ORDER_OUT:       'bg-red-50    text-red-700   border-red-200',
   ORDER_CANCEL_IN: 'bg-green-50  text-green-700 border-green-200',
   POS_OUT:         'bg-amber-50  text-amber-700 border-amber-200',

@@ -12,7 +12,7 @@ const fmt = (v) => formatAmount(v);
 function VarianceCell({ value }) {
   if (value === null || value === undefined) return <span className="text-gray-400">—</span>;
   const n = Number(value);
-  const cls = n === 0 ? 'text-green-700' : n > 0 ? 'text-blue-700' : 'text-red-700';
+  const cls = n === 0 ? 'text-green-700' : n > 0 ? 'text-brand-700' : 'text-red-700';
   return <span className={`font-semibold tabular-nums ${cls}`}>{n > 0 ? '+' : ''}{fmt(n)}</span>;
 }
 

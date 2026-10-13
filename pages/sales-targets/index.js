@@ -30,10 +30,10 @@ function ProductPicker({ value, onChange, allProducts }) {
 
   if (value) {
     return (
-      <div className="flex items-center gap-2 p-2.5 rounded-lg border border-blue-200 bg-blue-50">
-        <span className="flex-1 text-sm font-medium text-blue-800">{value.name}</span>
-        {value.productCode && <span className="text-xs text-blue-600">{value.productCode}</span>}
-        <button type="button" onClick={() => onChange(null)} className="text-blue-400 hover:text-blue-700 text-sm ml-1">×</button>
+      <div className="flex items-center gap-2 p-2.5 rounded-lg border border-brand-200 bg-brand-50">
+        <span className="flex-1 text-sm font-medium text-brand-800">{value.name}</span>
+        {value.productCode && <span className="text-xs text-brand-600">{value.productCode}</span>}
+        <button type="button" onClick={() => onChange(null)} className="text-brand-400 hover:text-brand-700 text-sm ml-1">×</button>
       </div>
     );
   }
@@ -54,7 +54,7 @@ function ProductPicker({ value, onChange, allProducts }) {
             : filtered.map(p => (
                 <button key={p.id} type="button"
                   onMouseDown={() => { onChange(p); setSearch(''); setOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center justify-between border-b border-gray-50 last:border-0">
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50 flex items-center justify-between border-b border-gray-50 last:border-0">
                   <span className="font-medium text-gray-800">{p.name}</span>
                   {p.productCode && <span className="text-xs text-gray-400">{p.productCode}</span>}
                 </button>
@@ -195,7 +195,7 @@ function SalesTargetsPage() {
       render: (v) => (
         <div className="flex items-center gap-2 w-28">
           <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${v >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, v)}%` }} />
+            <div className={`h-full rounded-full ${v >= 100 ? 'bg-green-500' : 'bg-brand-500'}`} style={{ width: `${Math.min(100, v)}%` }} />
           </div>
           <span className="text-xs text-gray-500 tabular-nums">{v.toFixed(0)}%</span>
         </div>
@@ -207,7 +207,7 @@ function SalesTargetsPage() {
         <div className="flex items-center gap-1 justify-end">
           <button
             onClick={() => { setEditingTarget(row); setShowForm(true); reset({ targetQty: row.targetQty }); }}
-            className="text-xs font-medium text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded-lg hover:bg-blue-50"
+            className="text-xs font-medium text-brand-600 hover:text-brand-800 px-2.5 py-1 rounded-lg hover:bg-brand-50"
           >
             Edit
           </button>

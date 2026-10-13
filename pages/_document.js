@@ -11,8 +11,9 @@ export default function Document() {
           href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,opsz,wght@0,6..22,100..900;1,6..22,100..900&display=swap"
           rel="stylesheet"
         />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
       </Head>
       <body>
         <Main />

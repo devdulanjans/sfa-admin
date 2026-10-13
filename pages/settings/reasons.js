@@ -9,7 +9,9 @@ import toast from 'react-hot-toast';
 const TYPES = [
   { value: 'DAMAGE', label: 'Damage Reasons' },
   { value: 'RETURN', label: 'Return Reasons' },
+  { value: 'VISIT',  label: 'Visit (No Order) Reasons' },
 ];
+const typeNoun = (type) => ({ DAMAGE: 'Damage', RETURN: 'Return', VISIT: 'Visit' }[type] ?? '');
 
 function ReasonsPage() {
   const qc = useQueryClient();
@@ -67,7 +69,7 @@ function ReasonsPage() {
 
   function confirmDelete(reason) {
     if (window.confirm(
-      `Remove reason "${reason.label}"? Reps will no longer be able to select it — existing damage/return records keep their saved text.`
+      `Remove reason "${reason.label}"? Reps will no longer be able to select it — existing ${type === 'VISIT' ? 'visit notes' : 'damage/return records'} keep their saved text.`
     )) {
       deleteMutation.mutate(reason.id);
     }
@@ -95,10 +97,11 @@ function ReasonsPage() {
   }
 
   return (
-    <Layout title="Return & Damage Reasons">
+    <Layout title="Reasons (Return, Damage & Visit)">
       <div className="w-full">
         <p className="text-sm text-gray-500 mb-4">
-          Manage the reason options reps pick from when recording a damage or return on the mobile app.
+          Manage the reason options reps pick from when recording a damage or return, or a visit note for a
+          customer who didn&apos;t place an order, on the mobile app.
           Changes sync to devices automatically on their next login/sync — no app update required.
         </p>
 
@@ -163,14 +166,14 @@ function ReasonsPage() {
                       <td className="px-4 py-3 font-medium text-gray-900">{reason.label}</td>
                       <td className="px-4 py-3 text-gray-500">
                         {reason.allowFreeText ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">Yes</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 font-medium">Yes</span>
                         ) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEdit(reason)}
-                            className="text-xs px-2 py-1 rounded font-medium bg-blue-50 text-blue-700 hover:bg-blue-100"
+                            className="text-xs px-2 py-1 rounded font-medium bg-brand-50 text-brand-700 hover:bg-brand-100"
                           >
                             Edit
                           </button>
@@ -196,7 +199,7 @@ function ReasonsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
             <h2 className="text-base font-semibold text-gray-900 mb-4">
-              {editing ? 'Edit Reason' : `New ${type === 'DAMAGE' ? 'Damage' : 'Return'} Reason`}
+              {editing ? 'Edit Reason' : `New ${typeNoun(type)} Reason`}
             </h2>
             <form
               onSubmit={handleSubmit(d => saveMutation.mutate({ label: d.label, allowFreeText: !!d.allowFreeText }))}

@@ -206,7 +206,7 @@ function PosDashboardPage() {
             onClick={() => setRangeKey(r.key)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               rangeKey === r.key
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-brand-600 text-white shadow-sm'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
           >
@@ -375,7 +375,7 @@ function PosDashboardPage() {
             <tbody className="divide-y divide-gray-100">
               {recentSales.length > 0 ? recentSales.map((s, i) => (
                 <tr key={i} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium text-blue-600">{s.saleNumber}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-brand-600">{s.saleNumber}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{s.customerName}</td>
                   <td className="px-4 py-3"><PaymentBadge method={s.paymentMethod} /></td>
                   <td className="px-4 py-3 text-sm font-medium tabular-nums">{fmtLKR(s.total)}</td>

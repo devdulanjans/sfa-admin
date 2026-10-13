@@ -185,7 +185,7 @@ function RecordPaymentModal({ bill, bankAccounts, onClose, onSubmit, isPending }
 
 const STATUS_BADGE = {
   OPEN: 'bg-amber-50 text-amber-700 border-amber-200',
-  PARTIALLY_PAID: 'bg-blue-50 text-blue-700 border-blue-200',
+  PARTIALLY_PAID: 'bg-brand-50 text-brand-700 border-brand-200',
   PAID: 'bg-green-50 text-green-700 border-green-200',
   CANCELLED: 'bg-gray-50 text-gray-500 border-gray-200',
 };
@@ -281,7 +281,7 @@ function PayablePage() {
     {
       key: 'id', label: '', render: (_, row) => (
         row.status !== 'PAID' && row.status !== 'CANCELLED' ? (
-          <button onClick={() => setPaymentTarget(row)} className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100">
+          <button onClick={() => setPaymentTarget(row)} className="rounded bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100">
             Record Payment
           </button>
         ) : null
@@ -293,11 +293,11 @@ function PayablePage() {
     <Layout title="Accounts Payable">
       <div className="mb-4 flex gap-2">
         <button onClick={() => setTab('bills')}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'bills' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'bills' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
           Vendor Bills
         </button>
         <button onClick={() => setTab('vendors')}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'vendors' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'vendors' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
           Vendors
         </button>
       </div>

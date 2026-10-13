@@ -14,7 +14,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const PAYMENT_BADGE = {
   CASH:   'bg-green-50 text-green-700 border-green-200',
-  CARD:   'bg-blue-50  text-blue-700  border-blue-200',
+  CARD:   'bg-brand-50  text-brand-700  border-brand-200',
   CREDIT: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
@@ -30,7 +30,7 @@ function SummaryTile({ label, value, tone = 'neutral', sub }) {
   const toneCls = {
     neutral: 'border-gray-200 bg-gray-50 text-gray-800',
     good:    'border-green-200 bg-green-50 text-green-700',
-    warn:    'border-blue-200 bg-blue-50 text-blue-700',
+    warn:    'border-brand-200 bg-brand-50 text-brand-700',
     bad:     'border-red-200 bg-red-50 text-red-700',
   }[tone];
   return (
@@ -88,7 +88,7 @@ function PosDailyReportPage() {
       key: 'variance', label: 'Variance',
       render: (v) => v === null || v === undefined
         ? <span className="text-gray-400">—</span>
-        : <span className={`font-semibold tabular-nums ${Number(v) === 0 ? 'text-green-700' : Number(v) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+        : <span className={`font-semibold tabular-nums ${Number(v) === 0 ? 'text-green-700' : Number(v) > 0 ? 'text-brand-700' : 'text-red-700'}`}>
             {Number(v) > 0 ? '+' : ''}{fmt(v)}
           </span>,
     },

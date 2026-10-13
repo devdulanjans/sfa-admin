@@ -75,7 +75,7 @@ function SearchFilterPanel({ onApply }) {
           </svg>
           <span className="text-sm font-semibold text-gray-700">Search &amp; Date Filters</span>
           {active > 0 && (
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+            <span className="inline-flex items-center rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
               {active} active
             </span>
           )}
@@ -113,7 +113,7 @@ function SearchFilterPanel({ onApply }) {
           <div className="flex items-center gap-2 pt-1">
             <button
               onClick={apply}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors shadow-sm"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -196,7 +196,7 @@ function OrdersPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(`/orders/${row.id}`)}
-            className="text-blue-600 text-xs hover:text-blue-800 font-medium"
+            className="text-brand-600 text-xs hover:text-brand-800 font-medium"
           >
             View
           </button>
@@ -229,7 +229,7 @@ function OrdersPage() {
               onClick={() => { setStatus(s); setPage(0); }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                 status === s
-                  ? 'bg-blue-600 text-white border-blue-600'
+                  ? 'bg-brand-600 text-white border-brand-600'
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -253,7 +253,7 @@ function OrdersPage() {
                 source === value
                   ? value === 'CUSTOMER_APP'
                     ? 'bg-purple-600 text-white border-purple-600'
-                    : 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-brand-600 text-white border-brand-600'
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
               }`}
             >

@@ -62,8 +62,8 @@
     transition: border-color 0.15s, box-shadow 0.15s;
   }
   .input-base:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+    border-color: #2e9690;
+    box-shadow: 0 0 0 2px rgba(46,150,144,0.2);
   }
   .input-base::placeholder { color: #9ca3af; }
 }

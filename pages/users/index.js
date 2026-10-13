@@ -35,6 +35,7 @@ function UsersPage() {
   const selectedRoleId       = watch('roleId');
   const selectedCustomerIds  = watch('customerIds') || [];
   const selectedGroupIds     = watch('customerGroupIds') || [];
+  const selectedTenantIds    = watch('tenantIds') || [];
 
   // ── Edit form ────────────────────────────────────────────────────────────
   const {
@@ -47,6 +48,7 @@ function UsersPage() {
   const eSelectedRoleId      = eWatch('roleId');
   const eSelectedCustomerIds = eWatch('customerIds') || [];
   const eSelectedGroupIds    = eWatch('customerGroupIds') || [];
+  const eSelectedTenantIds   = eWatch('tenantIds') || [];
 
   // ── Reset-password form (its own dedicated flow, not bundled into Edit User) ────
   const {
@@ -118,6 +120,18 @@ function UsersPage() {
     ? selectedGroupIds.filter(Boolean)
     : (selectedGroupIds ? [selectedGroupIds] : []);
 
+  // A distributor can belong to several channels at once — once the rep's channel(s) are
+  // picked above, only a distributor sharing at least one of those channels makes sense to
+  // offer here. Before any channel is checked (a fresh Create form) there's nothing to
+  // narrow by yet, so every active distributor stays available rather than showing a
+  // confusing empty list.
+  const checkedTenantIds = Array.isArray(selectedTenantIds)
+    ? selectedTenantIds.filter(Boolean)
+    : (selectedTenantIds ? [selectedTenantIds] : []);
+  const formDistributors = checkedTenantIds.length > 0
+    ? allDistributors.filter(d => d.tenants?.some(t => checkedTenantIds.includes(t.id)))
+    : allDistributors;
+
   // ── Role helpers (edit form) ─────────────────────────────────────────────
   const eSelectedRole   = (roles || []).find(r => r.id === eSelectedRoleId);
   const eIsSalesRole    = eSelectedRole?.name?.toUpperCase().includes('SALES');
@@ -131,6 +145,13 @@ function UsersPage() {
   const eCheckedGroupIds = Array.isArray(eSelectedGroupIds)
     ? eSelectedGroupIds.filter(Boolean)
     : (eSelectedGroupIds ? [eSelectedGroupIds] : []);
+
+  const eCheckedTenantIds = Array.isArray(eSelectedTenantIds)
+    ? eSelectedTenantIds.filter(Boolean)
+    : (eSelectedTenantIds ? [eSelectedTenantIds] : []);
+  const eFormDistributors = eCheckedTenantIds.length > 0
+    ? allDistributors.filter(d => d.tenants?.some(t => eCheckedTenantIds.includes(t.id)))
+    : allDistributors;
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const createMutation = useMutation({
@@ -290,7 +311,7 @@ function UsersPage() {
         if (row.assignedCustomerCount > 0) parts.push(`${row.assignedCustomerCount} customer${row.assignedCustomerCount !== 1 ? 's' : ''}`);
         if (row.customerGroupCount > 0) parts.push(`${row.customerGroupCount} group${row.customerGroupCount !== 1 ? 's' : ''}`);
         return (
-          <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">
+          <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded font-medium">
             {parts.join(' + ')}
           </span>
         );
@@ -369,9 +390,13 @@ function UsersPage() {
     );
   }
 
-  function DistributorCheckboxes({ reg, list, loading }) {
+  function DistributorCheckboxes({ reg, list, loading, filteredByChannel }) {
     if (loading) return <p className="text-xs text-gray-400 mt-1">Loading distributors…</p>;
-    if (!list.length) return <p className="text-xs text-gray-400 mt-1">No active distributors available.</p>;
+    if (!list.length) return (
+      <p className="text-xs text-gray-400 mt-1">
+        {filteredByChannel ? 'No active distributors under the selected channel(s).' : 'No active distributors available.'}
+      </p>
+    );
     return (
       <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-44 overflow-y-auto">
         {list.map(d => (
@@ -418,11 +443,11 @@ function UsersPage() {
             </p>
           </div>
         ) : (
-          <div className="flex items-start gap-2 mb-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-            <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <div className="flex items-start gap-2 mb-2 p-2.5 bg-brand-50 border border-brand-200 rounded-lg">
+            <svg className="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
             </svg>
-            <p className="text-xs text-blue-800">
+            <p className="text-xs text-brand-800">
               <strong>{checkedCount} customer{checkedCount !== 1 ? 's' : ''} selected</strong> — restricted access.
             </p>
           </div>
@@ -433,7 +458,7 @@ function UsersPage() {
           <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-52 overflow-y-auto">
             {list.map(c => (
               <label key={c.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
-                <input type="checkbox" value={c.id} {...reg} className="rounded border-gray-300 text-blue-600" />
+                <input type="checkbox" value={c.id} {...reg} className="rounded border-gray-300 text-brand-600" />
                 <div>
                   <span className="text-sm font-medium text-gray-900">{c.name}</span>
                   <span className="ml-2 text-xs font-mono text-gray-500">{c.customerCode}</span>
@@ -624,8 +649,9 @@ function UsersPage() {
                   <label className="label">Assign Distributors</label>
                   <DistributorCheckboxes
                     reg={register('distributorIds')}
-                    list={allDistributors}
+                    list={formDistributors}
                     loading={distLoading}
+                    filteredByChannel={checkedTenantIds.length > 0}
                   />
                 </div>
               )}
@@ -715,8 +741,9 @@ function UsersPage() {
                   <label className="label">Assign Distributors</label>
                   <DistributorCheckboxes
                     reg={eReg('distributorIds')}
-                    list={allDistributors}
+                    list={eFormDistributors}
                     loading={distLoading}
+                    filteredByChannel={eCheckedTenantIds.length > 0}
                   />
                 </div>
               )}

@@ -4,8 +4,9 @@ import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
-import { withAuth } from '../../lib/auth';
+import { withAuth, useAuth } from '../../lib/auth';
 import { useAccessibleTenants } from '../../lib/hooks';
+import ChannelMultiSelect, { ChannelChips, resolveHomeChannel, defaultChannelIds, recordChannelIds } from '../../components/ChannelMultiSelect';
 import { pricingApi, productApi, customerApi, customerGroupApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
@@ -89,7 +90,7 @@ function HistoryModal({ promo, onClose }) {
                     {/* Entry header */}
                     <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
                       <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center">
+                        <span className="w-6 h-6 rounded-full bg-brand-100 text-brand-600 text-xs font-bold flex items-center justify-center">
                           {history.length - idx}
                         </span>
                         <div>
@@ -183,10 +184,17 @@ function PromotionsPage() {
     defaultValues: { type: 'PERCENTAGE', isActive: true },
   });
 
-  // Only asked on create — a single-channel actor never needs to be asked (their one
-  // channel is implied either way), and an existing promotion's channel doesn't change.
+  // A single-channel actor never needs to be asked (their one channel is implied either
+  // way); anyone managing several picks every channel the promotion is available in.
+  const { user } = useAuth();
   const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
-    useAccessibleTenants({ enabled: showForm && !editingPromotion });
+    useAccessibleTenants();
+  // null = untouched → follows the record's channels (edit) or the ambient/first channel (create).
+  const [channelIds, setChannelIds]     = useState(null);
+  const [channelError, setChannelError] = useState(false);
+  const effectiveChannelIds = channelIds ?? (editingPromotion
+    ? recordChannelIds(editingPromotion)
+    : defaultChannelIds(accessibleTenants, user?.activeTenant?.id));
 
   const promoType     = watch('type');
   const isFreeProduct = promoType === 'FREE_PRODUCT';
@@ -285,11 +293,15 @@ function PromotionsPage() {
     setSelectedProductGroup(null);
     setProductGroupSearch('');
     setProductGroupDropdown(false);
+    setChannelIds(null);
+    setChannelError(false);
     reset({ type: 'PERCENTAGE', isActive: true });
   }, [reset]);
 
   const openEdit = useCallback((promo) => {
     setEditingPromo(promo);
+    setChannelIds(null);
+    setChannelError(false);
     setSelectedProducts(promo.products || []);
     setFreeProduct(promo.freeProduct || null);
     setSelectedProductGroup(promo.productGroup || null);
@@ -352,6 +364,12 @@ function PromotionsPage() {
       maxFreeCount:  isFreeProduct ? (formData.maxFreeCount || 1) : undefined,
       minOrderQty:   isFreeProduct ? (formData.minOrderQty  || 1) : undefined,
     };
+    delete body.channelIds;
+    if (needsChannelPicker) {
+      if (effectiveChannelIds.length === 0) { setChannelError(true); toast.error('Select at least one channel'); return; }
+      body.tenantIds = effectiveChannelIds;
+      body.tenantId  = resolveHomeChannel(effectiveChannelIds, editingPromotion?.tenantId);
+    }
 
     if (editingPromotion) {
       updateMutation.mutate({ id: editingPromotion.id, body });
@@ -380,7 +398,7 @@ function PromotionsPage() {
           <span title={prods.map(p => p.name).join(', ')}>
             {groupBadge}
             {prods[0].name}
-            <span className="ml-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-full px-1.5 py-0.5">+{prods.length - 1}</span>
+            <span className="ml-1 text-xs font-medium text-brand-600 bg-brand-50 rounded-full px-1.5 py-0.5">+{prods.length - 1}</span>
           </span>
         );
       },
@@ -414,6 +432,10 @@ function PromotionsPage() {
     { key: 'startDate', label: 'From' },
     { key: 'endDate',   label: 'To' },
     { key: 'isActive',  label: 'Active', render: (v) => <StatusBadge status={v ? 'ACTIVE' : 'INACTIVE'} /> },
+    ...(needsChannelPicker ? [{
+      key: 'channelIds', label: 'Channels',
+      render: (_, r) => <ChannelChips row={r} tenants={accessibleTenants} />,
+    }] : []),
     {
       key: '_actions',
       label: '',
@@ -421,7 +443,7 @@ function PromotionsPage() {
         <div className="flex items-center gap-1 justify-end">
           <button
             onClick={(e) => { e.stopPropagation(); openEdit(row); }}
-            className="text-xs font-medium text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded-lg hover:bg-blue-50 transition-colors"
+            className="text-xs font-medium text-brand-600 hover:text-brand-800 px-2.5 py-1 rounded-lg hover:bg-brand-50 transition-colors"
           >
             Edit
           </button>
@@ -478,19 +500,14 @@ function PromotionsPage() {
               </div>
 
               {needsChannelPicker && (
-                <div>
-                  <label className="label">Channel *</label>
-                  <select {...register('tenantId', { required: true })} className="input" disabled={tenantsLoading}>
-                    <option value="">{tenantsLoading ? 'Loading channels…' : 'Select a channel…'}</option>
-                    {accessibleTenants.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                  {errors.tenantId && <p className="text-red-500 text-xs mt-1">Required — which channel does this promotion belong to?</p>}
-                  <p className="text-xs text-gray-500 mt-1">
-                    You manage more than one channel — pick which one this promotion belongs to.
-                  </p>
-                </div>
+                <ChannelMultiSelect
+                  tenants={accessibleTenants}
+                  isLoading={tenantsLoading}
+                  value={effectiveChannelIds}
+                  onChange={(ids) => { setChannelError(false); setChannelIds(ids); }}
+                  homeId={resolveHomeChannel(effectiveChannelIds, editingPromotion?.tenantId)}
+                  showError={channelError}
+                />
               )}
 
               {/* Applies-to multi-select */}
@@ -502,9 +519,9 @@ function PromotionsPage() {
                 {selectedProducts.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {selectedProducts.map(p => (
-                      <span key={p.id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full border border-blue-200">
+                      <span key={p.id} className="inline-flex items-center gap-1 bg-brand-50 text-brand-700 text-xs font-medium px-2.5 py-1 rounded-full border border-brand-200">
                         {p.name}
-                        <button type="button" onMouseDown={() => removeAppliesTo(p.id)} className="ml-0.5 text-blue-400 hover:text-blue-700">×</button>
+                        <button type="button" onMouseDown={() => removeAppliesTo(p.id)} className="ml-0.5 text-brand-400 hover:text-brand-700">×</button>
                       </span>
                     ))}
                   </div>
@@ -524,7 +541,7 @@ function PromotionsPage() {
                         ? <p className="px-3 py-4 text-sm text-gray-400 text-center">{allProducts.length === 0 ? 'Loading…' : 'No matching products'}</p>
                         : filteredAppliesTo.map(p => (
                             <button key={p.id} type="button" onMouseDown={() => addAppliesTo(p)}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center justify-between border-b border-gray-50 last:border-0">
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50 flex items-center justify-between border-b border-gray-50 last:border-0">
                               <span className="font-medium text-gray-800">{p.name}</span>
                               {p.productCode && <span className="text-xs text-gray-400">{p.productCode}</span>}
                             </button>
@@ -598,10 +615,10 @@ function PromotionsPage() {
                 </div>
                 {customerTarget === 'customer' && (
                   selectedCustomer ? (
-                    <div className="flex items-center gap-2 p-2.5 rounded-lg border border-blue-200 bg-blue-50">
-                      <span className="flex-1 text-sm font-medium text-blue-800">{selectedCustomer.name}</span>
-                      {selectedCustomer.customerCode && <span className="text-xs text-blue-600">{selectedCustomer.customerCode}</span>}
-                      <button type="button" onClick={() => setSelectedCustomer(null)} className="text-blue-400 hover:text-blue-700 text-sm ml-1">×</button>
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg border border-brand-200 bg-brand-50">
+                      <span className="flex-1 text-sm font-medium text-brand-800">{selectedCustomer.name}</span>
+                      {selectedCustomer.customerCode && <span className="text-xs text-brand-600">{selectedCustomer.customerCode}</span>}
+                      <button type="button" onClick={() => setSelectedCustomer(null)} className="text-brand-400 hover:text-brand-700 text-sm ml-1">×</button>
                     </div>
                   ) : (
                     <div className="relative">
@@ -620,7 +637,7 @@ function PromotionsPage() {
                             : filteredCustomers.map(c => (
                                 <button key={c.id} type="button"
                                   onMouseDown={() => { setSelectedCustomer(c); setCustomerSearch(''); setCustomerDropdown(false); }}
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center justify-between border-b border-gray-50 last:border-0">
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50 flex items-center justify-between border-b border-gray-50 last:border-0">
                                   <span className="font-medium text-gray-800">{c.name}</span>
                                   {c.customerCode && <span className="text-xs text-gray-400">{c.customerCode}</span>}
                                 </button>

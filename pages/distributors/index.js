@@ -1,35 +1,65 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
-import { withAuth } from '../../lib/auth';
+import { withAuth, useAuth } from '../../lib/auth';
+import { useAccessibleTenants } from '../../lib/hooks';
 import { distributorApi, userApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
-const COLUMNS = [
-  { key: 'code',   label: 'Code',    render: (v) => <span className="font-mono font-medium">{v}</span> },
-  { key: 'name',   label: 'Name',    render: (v) => <span className="font-medium">{v}</span> },
-  { key: 'phone',  label: 'Phone',   render: (v) => v || '—' },
-  { key: 'email',  label: 'Email',   render: (v) => v || '—' },
-  { key: 'status', label: 'Status',  render: (v) => <StatusBadge status={v} /> },
-];
-
 function DistributorsPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const multiTenantEnabled = user?.multiTenantEnabled ?? true;
   const [page, setPage]           = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState(null);   // distributor being edited
   const [assignTarget, setAssignTarget] = useState(null); // distributor for user assignment
+  const [portalTarget, setPortalTarget] = useState(null); // distributor for portal-login management
 
   const { register: regCreate, handleSubmit: hsCreate, reset: resetCreate, formState: { errors: errCreate } } = useForm();
   const { register: regEdit,   handleSubmit: hsEdit,   reset: resetEdit,   formState: { errors: errEdit   } } = useForm();
+
+  // A distributor can belong to several channels at once, and that set is editable later
+  // (not fixed at creation) — so the picker is needed on both forms.
+  const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
+    useAccessibleTenants({ enabled: showCreate || !!editTarget });
+
+  const COLUMNS = [
+    { key: 'code',   label: 'Code',    render: (v) => <span className="font-mono font-medium">{v}</span> },
+    { key: 'name',   label: 'Name',    render: (v) => <span className="font-medium">{v}</span> },
+    ...(multiTenantEnabled ? [{
+      key: 'tenants', label: 'Channels',
+      render: (v) => {
+        if (!v?.length) return <span className="text-gray-400">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {v.map(t => (
+              <span key={t.id} className="text-xs font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">
+                {t.name}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    }] : []),
+    { key: 'phone',  label: 'Phone',   render: (v) => v || '—' },
+    { key: 'email',  label: 'Email',   render: (v) => v || '—' },
+    { key: 'status', label: 'Status',  render: (v) => <StatusBadge status={v} /> },
+  ];
 
   const { data, isLoading } = useQuery({
     queryKey: ['distributors', page],
     queryFn:  () => distributorApi.list({ page, size: 20 }).then(r => r.data),
   });
+
+  const { data: roles } = useQuery({
+    queryKey: ['roles'],
+    queryFn:  () => userApi.roles().then(r => r.data),
+  });
+  const distributorRole = (roles || []).find(r => r.name === 'DISTRIBUTOR');
 
   const { data: allUsers } = useQuery({
     queryKey: ['users-all'],
@@ -47,6 +77,15 @@ function DistributorsPage() {
       )
     ),
     enabled: !!assignTarget,
+  });
+
+  // The one login (if any) this distributor already has for the self-service portal —
+  // distinct from "Users" above, which is a SALES_REP's "can place orders under this
+  // distributor" assignment, not a login belonging to the distributor itself.
+  const { data: portalUser, isLoading: portalUserLoading, refetch: refetchPortalUser } = useQuery({
+    queryKey: ['distributor-portal-user', portalTarget?.id],
+    queryFn:  () => userApi.findByLoginDistributor(portalTarget.id).then(r => r.data).catch(() => null),
+    enabled:  !!portalTarget,
   });
 
   const createMutation = useMutation({
@@ -89,7 +128,11 @@ function DistributorsPage() {
 
   const openEdit = (row) => {
     setEditTarget(row);
-    resetEdit({ code: row.code, name: row.name, address: row.address || '', phone: row.phone || '', email: row.email || '' });
+    resetEdit({
+      code: row.code, name: row.name, address: row.address || '',
+      phone: row.phone || '', email: row.email || '',
+      tenantIds: row.tenants?.map(t => t.id) ?? [],
+    });
   };
 
   const assignedIds = new Set((assignedUsers || []).map(u => u.id));
@@ -101,11 +144,14 @@ function DistributorsPage() {
       key: 'actions', label: '',
       render: (_, row) => (
         <div className="flex gap-2">
-          <button onClick={() => openEdit(row)} className="text-xs px-2 py-1 rounded font-medium bg-blue-50 text-blue-700 hover:bg-blue-100">
+          <button onClick={() => openEdit(row)} className="text-xs px-2 py-1 rounded font-medium bg-brand-50 text-brand-700 hover:bg-brand-100">
             Edit
           </button>
           <button onClick={() => setAssignTarget(row)} className="text-xs px-2 py-1 rounded font-medium bg-purple-50 text-purple-700 hover:bg-purple-100">
             Users
+          </button>
+          <button onClick={() => setPortalTarget(row)} className="text-xs px-2 py-1 rounded font-medium bg-teal-50 text-teal-700 hover:bg-teal-100">
+            Portal Login
           </button>
           <button
             onClick={() => toggleMutation.mutate(row.id)}
@@ -144,7 +190,14 @@ function DistributorsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <h2 className="text-base font-semibold text-gray-900 mb-4">Create Distributor</h2>
-            <form onSubmit={hsCreate(d => createMutation.mutate(d))} className="space-y-3">
+            <form onSubmit={hsCreate(d => createMutation.mutate(normalizeDistributorPayload(d)))} className="space-y-3">
+              {needsChannelPicker && (
+                <div>
+                  <label className="label">Channels</label>
+                  <ChannelCheckboxes reg={regCreate('tenantIds', { required: true })} list={accessibleTenants} loading={tenantsLoading} />
+                  {errCreate.tenantIds && <p className="text-red-500 text-xs mt-1">Select at least one channel this distributor belongs to.</p>}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Code</label>
@@ -179,6 +232,9 @@ function DistributorsPage() {
                   Cancel
                 </button>
               </div>
+              <p className="text-xs text-gray-400 pt-1">
+                You can set up a portal login for this distributor afterwards, from the "Portal Login" action.
+              </p>
             </form>
           </div>
         </div>
@@ -189,7 +245,14 @@ function DistributorsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <h2 className="text-base font-semibold text-gray-900 mb-4">Edit Distributor</h2>
-            <form onSubmit={hsEdit(d => updateMutation.mutate({ id: editTarget.id, data: d }))} className="space-y-3">
+            <form onSubmit={hsEdit(d => updateMutation.mutate({ id: editTarget.id, data: normalizeDistributorPayload(d) }))} className="space-y-3">
+              {needsChannelPicker && (
+                <div>
+                  <label className="label">Channels</label>
+                  <ChannelCheckboxes reg={regEdit('tenantIds', { required: true })} list={accessibleTenants} loading={tenantsLoading} />
+                  {errEdit.tenantIds && <p className="text-red-500 text-xs mt-1">Select at least one channel this distributor belongs to.</p>}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Code</label>
@@ -229,13 +292,15 @@ function DistributorsPage() {
         </div>
       )}
 
-      {/* User assignment modal */}
+      {/* User assignment modal — which SALES_REPs can place orders under this distributor.
+          Distinct from the Portal Login modal below, which is a login belonging to the
+          distributor itself. */}
       {assignTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">
-                Manage Users — <span className="text-blue-600">{assignTarget.name}</span>
+                Manage Users — <span className="text-brand-600">{assignTarget.name}</span>
               </h2>
               <button onClick={() => setAssignTarget(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
@@ -278,7 +343,7 @@ function DistributorsPage() {
                       </div>
                       <button
                         onClick={() => assignMutation.mutate({ distId: assignTarget.id, userId: u.id })}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-xs text-brand-600 hover:text-brand-800 font-medium"
                         disabled={assignMutation.isPending}
                       >
                         Add
@@ -298,7 +363,183 @@ function DistributorsPage() {
           </div>
         </div>
       )}
+
+      {/* Portal Login modal — a login for the distributor itself, which sees only orders
+          placed under it (via the DISTRIBUTOR role, scoped server-side). */}
+      {portalTarget && (
+        <PortalLoginModal
+          distributor={portalTarget}
+          distributorRole={distributorRole}
+          portalUser={portalUser}
+          loading={portalUserLoading}
+          onClose={() => setPortalTarget(null)}
+          onChanged={refetchPortalUser}
+        />
+      )}
     </Layout>
+  );
+}
+
+// tenantIds arrives from react-hook-form checkboxes as a single string (one checked) or
+// an array (several) — normalize to an array either way, dropping falsy placeholder values.
+function normalizeDistributorPayload(d) {
+  return {
+    ...d,
+    tenantIds: Array.isArray(d.tenantIds) ? d.tenantIds.filter(Boolean) : (d.tenantIds ? [d.tenantIds] : []),
+  };
+}
+
+function ChannelCheckboxes({ reg, list, loading }) {
+  if (loading) return <p className="text-xs text-gray-400 mt-1">Loading channels…</p>;
+  if (!list.length) return <p className="text-xs text-gray-400 mt-1">No active channels available.</p>;
+  return (
+    <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-44 overflow-y-auto">
+      {list.map(t => (
+        <label key={t.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
+          <input type="checkbox" value={t.id} {...reg} className="rounded border-gray-300 text-amber-600" />
+          <div>
+            <span className="text-sm font-medium text-gray-900">{t.name}</span>
+            <span className="ml-2 text-xs font-mono text-gray-500">{t.code}</span>
+          </div>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function PortalLoginModal({ distributor, distributorRole, portalUser, loading, onClose, onChanged }) {
+  const [creds, setCreds]   = useState({ username: '', email: '', password: '', confirm: '' });
+  const [resetMode, setResetMode] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!portalUser) {
+      setCreds({ username: distributor.code?.toLowerCase() || '', email: distributor.email || '', password: '', confirm: '' });
+    }
+  }, [portalUser, distributor]);
+
+  async function handleCreate() {
+    if (!creds.username.trim()) { toast.error('Username is required'); return; }
+    if (!creds.email.trim())    { toast.error('Email is required');    return; }
+    if (creds.password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (creds.password !== creds.confirm) { toast.error('Passwords do not match'); return; }
+    if (!distributorRole) { toast.error('DISTRIBUTOR role not found in system'); return; }
+
+    setSaving(true);
+    try {
+      await userApi.create({
+        username:     creds.username.trim(),
+        email:        creds.email.trim(),
+        fullName:     distributor.name,
+        password:     creds.password,
+        roleId:       distributorRole.id,
+        loginDistributorId: distributor.id,
+        distributorIds: [],
+        customerIds:    [],
+      });
+      toast.success('Portal login created');
+      onChanged();
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? err.response?.data?.detail ?? 'Failed to create login');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (!portalUser) return;
+    setSaving(true);
+    try {
+      await userApi.resetPassword(portalUser.id, { newPassword, forceChangeOnNextLogin: true });
+      toast.success('Password reset');
+      setResetMode(false);
+      setNewPassword('');
+    } catch (err) {
+      toast.error(err.response?.data?.detail ?? 'Failed to reset password');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-base font-semibold text-gray-900">
+            Portal Login — <span className="text-brand-600">{distributor.name}</span>
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">
+          This creates a login for the distributor to see the orders placed under it.
+        </p>
+
+        {loading ? (
+          <p className="text-sm text-gray-400 py-4 text-center">Loading…</p>
+        ) : portalUser ? (
+          <div className="space-y-3">
+            <div className="rounded-lg bg-green-50 px-3 py-2">
+              <p className="text-sm font-medium text-gray-800">{portalUser.username}</p>
+              <p className="text-xs text-gray-500">{portalUser.email}</p>
+            </div>
+            {!resetMode ? (
+              <button className="btn-secondary w-full" onClick={() => setResetMode(true)}>
+                Reset Password
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="New password (min 8 characters)"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+                <div className="flex gap-2">
+                  <button className="btn-primary flex-1" disabled={saving} onClick={handleResetPassword}>
+                    {saving ? 'Resetting…' : 'Confirm Reset'}
+                  </button>
+                  <button className="btn-secondary flex-1" onClick={() => { setResetMode(false); setNewPassword(''); }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div>
+              <label className="label">Username</label>
+              <input className="input" value={creds.username} onChange={e => setCreds({ ...creds, username: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Email</label>
+              <input type="email" className="input" value={creds.email} onChange={e => setCreds({ ...creds, email: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label">Password</label>
+                <input type="password" className="input" value={creds.password} onChange={e => setCreds({ ...creds, password: e.target.value })} autoComplete="new-password" />
+              </div>
+              <div>
+                <label className="label">Confirm</label>
+                <input type="password" className="input" value={creds.confirm} onChange={e => setCreds({ ...creds, confirm: e.target.value })} autoComplete="new-password" />
+              </div>
+            </div>
+            <button className="btn-primary w-full mt-2" disabled={saving} onClick={handleCreate}>
+              {saving ? 'Creating…' : 'Create Portal Login'}
+            </button>
+          </div>
+        )}
+
+        <div className="mt-4 text-right">
+          <button className="btn-secondary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
   );
 }
 

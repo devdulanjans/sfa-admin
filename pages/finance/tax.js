@@ -121,11 +121,11 @@ function TaxManagementPage() {
 
       <div className="mb-4 flex gap-2">
         <button onClick={() => setTab('ledger')}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'ledger' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'ledger' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
           Tax Payable Ledger
         </button>
         <button onClick={() => setTab('payments')}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'payments' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'payments' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
           Payments to Authority
         </button>
       </div>

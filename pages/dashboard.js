@@ -65,7 +65,7 @@ function RevTooltip({ active, payload, label }) {
   return (
     <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }}>
       <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{fmtDate(label)}</p>
-      <p style={{ fontSize: 13, fontWeight: 600, color: '#3b82f6' }}>{fmtLKR(payload[0]?.value)}</p>
+      <p style={{ fontSize: 13, fontWeight: 600, color: '#2e9690' }}>{fmtLKR(payload[0]?.value)}</p>
     </div>
   );
 }
@@ -86,7 +86,7 @@ function BarTip({ active, payload, label }) {
   return (
     <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }}>
       <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{label}</p>
-      <p style={{ fontSize: 13, fontWeight: 600, color: '#3b82f6' }}>{fmtLKR(payload[0]?.value)}</p>
+      <p style={{ fontSize: 13, fontWeight: 600, color: '#2e9690' }}>{fmtLKR(payload[0]?.value)}</p>
     </div>
   );
 }
@@ -165,7 +165,7 @@ function Dashboard() {
             onClick={() => setRangeKey(r.key)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               rangeKey === r.key
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-brand-600 text-white shadow-sm'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
           >
@@ -209,8 +209,8 @@ function Dashboard() {
               <AreaChart data={dailyRevenue} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.18} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="5%"  stopColor="#2e9690" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#2e9690" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f4f8" />
@@ -219,10 +219,10 @@ function Dashboard() {
                 <Tooltip content={<RevTooltip />} />
                 <Area
                   type="monotone" dataKey="revenue"
-                  stroke="#3b82f6" strokeWidth={2}
+                  stroke="#2e9690" strokeWidth={2}
                   fill="url(#revGrad)"
-                  dot={{ r: 2.5, fill: '#3b82f6', strokeWidth: 0 }}
-                  activeDot={{ r: 4, fill: '#3b82f6' }}
+                  dot={{ r: 2.5, fill: '#2e9690', strokeWidth: 0 }}
+                  activeDot={{ r: 4, fill: '#2e9690' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -279,8 +279,8 @@ function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f4f8" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                 <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
-                <Tooltip content={<BarTip />} cursor={{ fill: 'rgba(59,130,246,0.06)' }} />
-                <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 4, 4, 0]} maxBarSize={16} />
+                <Tooltip content={<BarTip />} cursor={{ fill: 'rgba(46,150,144,0.06)' }} />
+                <Bar dataKey="revenue" fill="#2e9690" radius={[0, 4, 4, 0]} maxBarSize={16} />
               </BarChart>
             </ResponsiveContainer>
           ) : <Empty />}
@@ -326,7 +326,7 @@ function Dashboard() {
               ? `${((Number(topCustomers[0].revenue) / Number(dash.totalRevenue)) * 100).toFixed(1)}%`
               : '—'}
             sub={topCustomers[0]?.name ?? ''}
-            color="#3b82f6"
+            color="#2e9690"
           />
           <RatioTile
             label="Top Rep Share"
@@ -373,7 +373,7 @@ function Dashboard() {
             <tbody className="divide-y divide-gray-100">
               {recentOrders.length > 0 ? recentOrders.map((o, i) => (
                 <tr key={i} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium text-blue-600">{o.orderNumber}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-brand-600">{o.orderNumber}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{o.customerName}</td>
                   <td className="px-4 py-3 text-sm font-medium tabular-nums">{fmtLKR(o.total)}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>

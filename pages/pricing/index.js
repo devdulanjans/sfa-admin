@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
-import { withAuth } from '../../lib/auth';
+import { withAuth, useAuth } from '../../lib/auth';
 import { useAccessibleTenants } from '../../lib/hooks';
+import ChannelMultiSelect, { ChannelChips, resolveHomeChannel, defaultChannelIds, recordChannelIds } from '../../components/ChannelMultiSelect';
 import { pricingApi, productApi, customerApi, customerGroupApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
@@ -44,7 +45,10 @@ function Combobox({ items, value, onChange, placeholder, getLabel, getSubLabel, 
     staleTime: 30_000,
   });
 
-  const pool = asyncSearch ? (asyncItems ?? []) : (items ?? []);
+  // Tolerate a paged response ({ content: [...] }) as well as a plain array — another page
+  // caching a different shape under the same query key must not crash this combobox.
+  const toList = (d) => (Array.isArray(d) ? d : (d?.content ?? []));
+  const pool = asyncSearch ? toList(asyncItems) : toList(items);
 
   // Sync selection when value changes (handles edit pre-fill + external clear).
   // Only touches `selected`, never `query` — clearing the typed search text here
@@ -146,7 +150,7 @@ function Combobox({ items, value, onChange, placeholder, getLabel, getSubLabel, 
 }
 
 // ── Table column definitions ───────────────────────────────────────────────────
-function buildColumns(onEdit, onDelete) {
+function buildColumns(onEdit, onDelete, channelTenants) {
   return [
     {
       key: 'product',
@@ -181,7 +185,7 @@ function buildColumns(onEdit, onDelete) {
           </div>
         ) : r.customer ? (
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wide">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 uppercase tracking-wide">
               Special
             </span>
             <span className="text-sm text-gray-800">{r.customer.name}</span>
@@ -202,6 +206,10 @@ function buildColumns(onEdit, onDelete) {
     { key: 'minQty',    label: 'Min Qty',   render: (v) => v ?? <span className="text-gray-400">—</span> },
     { key: 'startDate', label: 'From',      render: (v) => v ?? '—' },
     { key: 'endDate',   label: 'To',        render: (v) => v ?? '—' },
+    ...(channelTenants ? [{
+      key: 'channelIds', label: 'Channels',
+      render: (_, r) => <ChannelChips row={r} tenants={channelTenants} />,
+    }] : []),
     {
       key: 'id',
       label: '',
@@ -236,7 +244,7 @@ function FilterPanel({ filters, onChange, onClear, searchCustomers, customerGrou
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-gray-700">Filters</span>
         {active > 0 && (
-          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+          <span className="inline-flex items-center rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
             {active} active
           </span>
         )}
@@ -246,7 +254,7 @@ function FilterPanel({ filters, onChange, onClear, searchCustomers, customerGrou
           <label className="text-xs font-medium text-gray-500 mb-1 block">Customer</label>
           <Combobox
             asyncSearch={searchCustomers}
-            asyncKey="customers-picker"
+            asyncKey="batch-price-customers"
             value={filters.customerId}
             onChange={(v) => onChange({ ...filters, customerId: v })}
             placeholder="Any customer…"
@@ -330,10 +338,16 @@ function BatchPricingPage() {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-  // Only asked on create — a single-channel actor never needs to be asked (their one
-  // channel is implied either way), and an existing rule's channel doesn't change.
+  // A single-channel actor never needs to be asked (their one channel is implied either
+  // way); anyone managing several picks every channel the rule is available in.
+  const { user } = useAuth();
   const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
-    useAccessibleTenants({ enabled: showForm && !editingRule });
+    useAccessibleTenants();
+  // null = untouched → follows the rule's channels (edit) or the ambient/first channel (create).
+  const [channelIds, setChannelIds]     = useState(null);
+  const effectiveChannelIds = channelIds ?? (editingRule
+    ? recordChannelIds(editingRule)
+    : defaultChannelIds(accessibleTenants, user?.activeTenant?.id));
 
   const { data, isLoading } = useQuery({
     queryKey: ['batch-prices', page, filters],
@@ -416,6 +430,7 @@ function BatchPricingPage() {
     setCustomerTarget('all');
     setCustomerGroupId('');
     setSubmitAttempted(false);
+    setChannelIds(null);
     reset({ price: '', minQty: '', startDate: todayStr, endDate: '' });
     setShowForm(true);
   }
@@ -445,6 +460,7 @@ function BatchPricingPage() {
       setCustomerGroupId('');
     }
     setSubmitAttempted(false);
+    setChannelIds(null);
     reset({
       price:     rule.price ?? '',
       minQty:    rule.minQty ?? '',
@@ -464,6 +480,7 @@ function BatchPricingPage() {
     setCustomerTarget('all');
     setCustomerGroupId('');
     setSubmitAttempted(false);
+    setChannelIds(null);
     reset();
   }
 
@@ -471,6 +488,7 @@ function BatchPricingPage() {
     setSubmitAttempted(true);
     if (productTarget === 'product' && !productId) return;
     if (productTarget === 'group' && !productGroupId) return;
+    if (needsChannelPicker && effectiveChannelIds.length === 0) { toast.error('Select at least one channel'); return; }
     const body = {
       ...data,
       productId:      productTarget === 'product' ? productId : undefined,
@@ -479,6 +497,11 @@ function BatchPricingPage() {
       customerGroupId: customerTarget === 'group'    ? customerGroupId : undefined,
       minQty:    (data.minQty !== '' && data.minQty != null) ? data.minQty : undefined,
     };
+    if (needsChannelPicker) {
+      body.tenantIds = effectiveChannelIds;
+      // Home channel is only chosen on create (the batch price JSON doesn't expose it).
+      if (!editingRule) body.tenantId = resolveHomeChannel(effectiveChannelIds, undefined);
+    }
     if (editingRule) {
       updateMutation.mutate({ id: editingRule.id, body });
     } else {
@@ -494,7 +517,7 @@ function BatchPricingPage() {
     const productLabel  = row.productGroup  ? `Group: ${row.productGroup.name}`   : (row.product?.name ?? 'Rule');
     const customerLabel = row.customerGroup ? `Group: ${row.customerGroup.name}` : (row.customer?.name ?? 'All');
     setDeleteTarget({ id, name: `${productLabel} — ${customerLabel}` });
-  });
+  }, needsChannelPicker ? accessibleTenants : null);
 
   return (
     <Layout title="Batch Pricing">
@@ -544,19 +567,14 @@ function BatchPricingPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
               {needsChannelPicker && (
-                <div>
-                  <label className="label">Channel *</label>
-                  <select {...register('tenantId', { required: true })} className="input" disabled={tenantsLoading}>
-                    <option value="">{tenantsLoading ? 'Loading channels…' : 'Select a channel…'}</option>
-                    {accessibleTenants.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                  {errors.tenantId && <p className="text-red-500 text-xs mt-1">Required — which channel does this price rule belong to?</p>}
-                  <p className="text-xs text-gray-500 mt-1">
-                    You manage more than one channel — pick which one this price rule belongs to.
-                  </p>
-                </div>
+                <ChannelMultiSelect
+                  tenants={accessibleTenants}
+                  isLoading={tenantsLoading}
+                  value={effectiveChannelIds}
+                  onChange={setChannelIds}
+                  homeId={editingRule ? undefined : resolveHomeChannel(effectiveChannelIds, undefined)}
+                  showError={submitAttempted}
+                />
               )}
 
               {/* Product */}
@@ -629,7 +647,7 @@ function BatchPricingPage() {
                 {customerTarget === 'customer' && (
                   <Combobox
                     asyncSearch={searchCustomers}
-                    asyncKey="customers-picker"
+                    asyncKey="batch-price-customers"
                     initialItem={editingRule?.customer ?? null}
                     value={customerId}
                     onChange={setCustomerId}
@@ -649,8 +667,8 @@ function BatchPricingPage() {
                   />
                 )}
                 {(customerTarget === 'customer' && customerId) && (
-                  <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  <p className="text-xs text-brand-600 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-500"></span>
                     This will create a customer-specific price that overrides the default.
                   </p>
                 )}

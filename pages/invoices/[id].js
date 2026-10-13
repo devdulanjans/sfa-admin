@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { withAuth } from '../../lib/auth';
 import { invoiceApi, bankAccountApi } from '../../lib/api';
 import { formatAmount } from '../../lib/format';
+import SendToCustomerModal from '../../components/SendToCustomerModal';
 
 const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'CARD', 'OTHER'];
 
@@ -95,6 +96,7 @@ function InvoiceDetailPage() {
   const [exporting, setExporting] = useState(false);
   const [exportingSecondary, setExportingSecondary] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [showSend, setShowSend] = useState(false);
 
   const { data: invoice } = useQuery({
     queryKey: ['invoice-detail', id],
@@ -226,6 +228,11 @@ function InvoiceDetailPage() {
           border: 'none', borderRadius: 4, cursor: (invoice && !exportingSecondary) ? 'pointer' : 'default',
           opacity: (invoice && !exportingSecondary) ? 1 : 0.6, fontWeight: 600, fontSize: 13,
         }}>{exportingSecondary ? 'Exporting…' : '⬇ Export Excel (secondary sales)'}</button>
+        <button onClick={() => setShowSend(true)} disabled={!invoice} style={{
+          padding: '6px 14px', background: '#25d366', color: '#fff',
+          border: 'none', borderRadius: 4, cursor: invoice ? 'pointer' : 'default',
+          opacity: invoice ? 1 : 0.6, fontWeight: 600, fontSize: 13,
+        }}>✉ Send to Customer</button>
         {canRecordPayment && (
           <button onClick={() => setShowPayment(true)} style={{
             padding: '6px 14px', background: '#00897b', color: '#fff',
@@ -250,6 +257,15 @@ function InvoiceDetailPage() {
         <div className="pdf-frame-wrap">
           <iframe ref={iframeRef} className="pdf-frame" src={pdfUrl} title="Invoice PDF" />
         </div>
+      )}
+
+      {showSend && invoice && (
+        <SendToCustomerModal
+          type="invoice"
+          id={id}
+          number={invoice.invoiceNumber}
+          onClose={() => setShowSend(false)}
+        />
       )}
 
       {showPayment && invoice && (

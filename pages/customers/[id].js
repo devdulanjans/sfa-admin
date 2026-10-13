@@ -1,5 +1,6 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useEffect, useRef, useState } from 'react';
@@ -7,11 +8,15 @@ import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import RecordCreditPaymentModal from '../../components/RecordCreditPaymentModal';
-import { withAuth, useAuth } from '../../lib/auth';
+import { withAuth, useAuth, usePermission } from '../../lib/auth';
 import { useAccessibleTenants } from '../../lib/hooks';
-import { customerApi, productApi, userApi, posApi } from '../../lib/api';
+import ChannelMultiSelect, { resolveHomeChannel, defaultChannelIds, recordChannelIds } from '../../components/ChannelMultiSelect';
+import { customerApi, productApi, userApi, posApi, salesRouteApi } from '../../lib/api';
+import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
+
+const LocationPicker = dynamic(() => import('../../components/LocationPicker'), { ssr: false });
 
 // Debounced async-search combobox — same pattern already used in pages/invoices/index.js
 // and pages/reports/mileage.js (this codebase duplicates it per-page rather than sharing
@@ -133,8 +138,9 @@ function CustomerDetailPage() {
   const { user } = useAuth();
   // A single-channel actor never needs to be asked — their one channel is implied
   // either way. Anyone managing more than one picks which this customer belongs to.
+  // Also feeds the portal account's channel picker, so it's loaded on existing customers too.
   const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
-    useAccessibleTenants({ enabled: isNew });
+    useAccessibleTenants();
 
   const [showPicker, setShowPicker]       = useState(false);
   const [selectedIds, setSelectedIds]     = useState([]);
@@ -147,6 +153,9 @@ function CustomerDetailPage() {
   const [resetMode, setResetMode]         = useState(false);
   const [newPassword, setNewPassword]     = useState('');
   const [portalSaving, setPortalSaving]   = useState(false);
+  // Channels the portal login can order from, on top of the customer's own (always included).
+  // null = not touched yet, so it follows the saved/default selection below.
+  const [portalChannels, setPortalChannels] = useState(null);
 
   const { data: customer, isLoading } = useQuery({
     queryKey: ['customer', id],
@@ -285,12 +294,39 @@ function CustomerDetailPage() {
       if (!data.addresses || data.addresses.length === 0) {
         data.addresses = [{ label: '', addressLine: '' }];
       }
+      data.tenantIds = recordChannelIds(customer);
       reset(data);
       if (customer.parentCustomerId) {
         setParentCustomer({ value: customer.parentCustomerId, label: customer.parentCustomerName || 'Parent customer' });
       }
     }
   }, [customer, reset]);
+
+  // "Available in channels" — on create, default to the ambient / first channel once loaded.
+  const channelSelection = watch('tenantIds');
+  const [channelError, setChannelError] = useState(false);
+  useEffect(() => {
+    if (isNew && needsChannelPicker && !channelSelection) {
+      setValue('tenantIds', defaultChannelIds(accessibleTenants, user?.activeTenant?.id));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNew, needsChannelPicker, accessibleTenants.length]);
+
+  // Adds tenantIds (+ home tenantId) when the actor manages several channels; otherwise
+  // leaves channels alone (single-channel actor — their one channel is implied).
+  function submitCustomer(d) {
+    const body = { ...d };
+    delete body.channelIds;
+    if (needsChannelPicker) {
+      const ids = body.tenantIds ?? [];
+      if (ids.length === 0) { setChannelError(true); toast.error('Select at least one channel'); return; }
+      body.tenantIds = ids;
+      body.tenantId = resolveHomeChannel(ids, isNew ? undefined : customer?.tenantId);
+    } else {
+      delete body.tenantIds;
+    }
+    mutation.mutate(body);
+  }
 
   useEffect(() => {
     if (assignedProducts) setSelectedIds(assignedProducts.map(p => p.id));
@@ -359,6 +395,7 @@ function CustomerDetailPage() {
             password:      creds.password,
             roleId:        customerRole.id,
             customerId:    savedId,
+            tenantIds:     withOwnChannel(portalChannels ?? [], res.data.tenantId),
             distributorIds: [],
             customerIds:    [],
           });
@@ -398,6 +435,35 @@ function CustomerDetailPage() {
     onError: (err) => toast.error(err.response?.data?.detail ?? 'Failed to restore customer'),
   });
 
+  // Route suggestion (lead captured by a rep while on an assigned route).
+  const canManageRoutes = usePermission('MOD_ROUTES');
+  function invalidateSuggestion() {
+    qc.invalidateQueries({ queryKey: ['customer', id] });
+    qc.invalidateQueries({ queryKey: ['customers'] });
+    qc.invalidateQueries({ queryKey: ['sales-routes'] });
+    qc.invalidateQueries({ queryKey: ['sales-route'] });
+    qc.invalidateQueries({ queryKey: ['sales-route-suggestions'] });
+  }
+  const acceptSuggestionMutation = useMutation({
+    mutationFn: () => salesRouteApi.acceptSuggestion(customer.suggestedRouteId, id),
+    onSuccess: () => {
+      toast.success(`Added to route ${customer?.suggestedRouteName ?? ''}`.trim());
+      invalidateSuggestion();
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.detail ?? 'Failed to add customer to route');
+      qc.invalidateQueries({ queryKey: ['customer', id] });
+    },
+  });
+  const dismissSuggestionMutation = useMutation({
+    mutationFn: () => salesRouteApi.dismissSuggestion(customer.suggestedRouteId, id),
+    onSuccess: () => {
+      toast.success('Suggestion dismissed');
+      invalidateSuggestion();
+    },
+    onError: (err) => toast.error(err.response?.data?.detail ?? 'Failed to dismiss suggestion'),
+  });
+
   function confirmDelete() {
     if (window.confirm(`Delete customer "${customer?.name}"? This can be restored later by a super admin.`)) {
       deleteMutation.mutate();
@@ -421,6 +487,7 @@ function CustomerDetailPage() {
         password:     creds.password,
         roleId:       customerRole.id,
         customerId:   id,
+        tenantIds:    withOwnChannel(portalChannels ?? [], customer?.tenantId),
         distributorIds: [],
         customerIds:    [],
       });
@@ -454,6 +521,29 @@ function CustomerDetailPage() {
       setNewPassword('');
     } catch (err) {
       toast.error(err.response?.data?.detail ?? 'Failed to reset password');
+    } finally {
+      setPortalSaving(false);
+    }
+  }
+
+  // Save which channels an existing portal login can order from
+  async function handleSavePortalChannels() {
+    if (!portalUser) return;
+    setPortalSaving(true);
+    try {
+      await userApi.update(portalUser.id, {
+        fullName:       portalUser.fullName,
+        email:          portalUser.email,
+        roleId:         portalUser.roleId,
+        tenantIds:      withOwnChannel(portalChannels ?? [], customer?.tenantId),
+        distributorIds: [],
+        customerIds:    [],
+      });
+      toast.success('Portal channels updated');
+      setPortalChannels(null);
+      refetchPortalUser();
+    } catch (err) {
+      toast.error(err.response?.data?.detail ?? 'Failed to update channels');
     } finally {
       setPortalSaving(false);
     }
@@ -509,10 +599,52 @@ function CustomerDetailPage() {
   }
 
   const hasPortalUser = !!portalUser;
+  // The customer's own channel — always part of its portal login's channels.
+  const ownChannelId = isNew
+    ? ((channelSelection ?? [])[0] || (accessibleTenants.length === 1 ? accessibleTenants[0].id : null))
+    : customer?.tenantId;
+  const savedPortalChannels = withOwnChannel((portalUser?.tenants ?? []).map(t => t.id), ownChannelId);
+  const portalChannelSelection = withOwnChannel(
+    portalChannels ?? (hasPortalUser ? savedPortalChannels : []), ownChannelId);
+  const portalChannelsDirty = hasPortalUser && portalChannels !== null &&
+    (portalChannelSelection.length !== savedPortalChannels.length ||
+     portalChannelSelection.some(cid => !savedPortalChannels.includes(cid)));
+  const showPortalChannels = accessibleTenants.length > 1;
 
   return (
     <Layout title={isNew ? 'New Customer' : customer?.name ?? 'Customer'}>
       <div className="space-y-5 w-full">
+
+        {/* ── Route suggestion ─────────────────────────────────────── */}
+        {!isNew && customer?.suggestedRouteId && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-amber-800">
+              <p>
+                Suggested for route{' '}
+                {canManageRoutes
+                  ? <Link href={`/routes/${customer.suggestedRouteId}`} className="font-semibold underline">{customer.suggestedRouteName || 'route'}</Link>
+                  : <span className="font-semibold">{customer.suggestedRouteName || 'route'}</span>}
+                {customer.suggestedByName && <> by <span className="font-medium">{customer.suggestedByName}</span></>}
+                {customer.suggestedAt && <> on {format(new Date(customer.suggestedAt), 'dd MMM yyyy')}</>}
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5">The rep captured this customer as a lead while working that route.</p>
+            </div>
+            {canManageRoutes && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button type="button" className="btn-primary"
+                  disabled={acceptSuggestionMutation.isPending || dismissSuggestionMutation.isPending}
+                  onClick={() => acceptSuggestionMutation.mutate()}>
+                  {acceptSuggestionMutation.isPending ? 'Adding…' : 'Add to route'}
+                </button>
+                <button type="button" className="btn-secondary"
+                  disabled={acceptSuggestionMutation.isPending || dismissSuggestionMutation.isPending}
+                  onClick={() => dismissSuggestionMutation.mutate()}>
+                  {dismissSuggestionMutation.isPending ? 'Dismissing…' : 'Dismiss'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Customer form ────────────────────────────────────────── */}
         <div className="card p-6">
@@ -552,21 +684,16 @@ function CustomerDetailPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-4">
+          <form onSubmit={handleSubmit(submitCustomer)} className="space-y-4">
             {needsChannelPicker && (
-              <div>
-                <label className="label">Channel *</label>
-                <select {...register('tenantId', { required: true })} className="input" disabled={tenantsLoading}>
-                  <option value="">{tenantsLoading ? 'Loading channels…' : 'Select a channel…'}</option>
-                  {accessibleTenants.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-                {errors.tenantId && <p className="text-red-500 text-xs mt-1">Required — which channel does this customer belong to?</p>}
-                <p className="text-xs text-gray-500 mt-1">
-                  You manage more than one channel — pick which one this customer belongs to.
-                </p>
-              </div>
+              <ChannelMultiSelect
+                tenants={accessibleTenants}
+                isLoading={tenantsLoading}
+                value={channelSelection ?? []}
+                onChange={(ids) => { setChannelError(false); setValue('tenantIds', ids, { shouldDirty: true }); }}
+                homeId={resolveHomeChannel(channelSelection ?? [], isNew ? undefined : customer?.tenantId)}
+                showError={channelError}
+              />
             )}
 
             <div className="grid grid-cols-2 gap-4">
@@ -596,15 +723,51 @@ function CustomerDetailPage() {
                 <input type="email" {...register('email')} className="input" />
               </div>
               <div>
+                <div className="flex items-center justify-between">
+                  <label className="label">WhatsApp Number</label>
+                  <button
+                    type="button"
+                    className="text-xs text-brand-600 hover:underline mb-1"
+                    onClick={() => setValue('whatsappNumber', watch('phone') ?? '', { shouldDirty: true })}
+                  >
+                    Same as phone
+                  </button>
+                </div>
+                <input
+                  type="tel"
+                  placeholder="e.g. 0771234567 or +94771234567"
+                  {...register('whatsappNumber', {
+                    maxLength: { value: 20, message: 'Max 20 characters' },
+                    pattern:   { value: /^\+?[\d\s-]*$/, message: 'Digits, spaces, + and - only' },
+                  })}
+                  className="input"
+                />
+                {errors.whatsappNumber && <p className="text-xs text-red-500 mt-1">{errors.whatsappNumber.message}</p>}
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 -mt-2">
+              Order and invoice details are sent to this email / WhatsApp number when notifications are enabled for the channel in Settings → Notifications.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <label className="label">Location</label>
                 <input placeholder="e.g. Colombo" {...register('location')} className="input" />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Place of Supplier</label>
                 <input placeholder="e.g. KEELLS - Anuradhapura" {...register('placeOfSupplier')} className="input" />
               </div>
+            </div>
+            <div>
+              <label className="label">Coordinates</label>
+              <LocationPicker
+                latitude={watch('latitude')}
+                longitude={watch('longitude')}
+                onChange={(la, ln) => {
+                  setValue('latitude', la, { shouldDirty: true });
+                  setValue('longitude', ln, { shouldDirty: true });
+                }}
+              />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -614,7 +777,7 @@ function CustomerDetailPage() {
                 <button
                   type="button"
                   onClick={() => appendAddress({ label: '', addressLine: '' })}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  className="text-xs text-brand-600 hover:text-brand-800 font-medium"
                 >
                   + Add Address
                 </button>
@@ -713,7 +876,7 @@ function CustomerDetailPage() {
             <div className="rounded-lg border border-gray-200 p-4">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" {...register('splitPromoInvoiceEnabled')}
-                  className="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 shrink-0" />
+                  className="h-4 w-4 mt-0.5 rounded border-gray-300 text-brand-600 shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">Split Free Items onto a Separate Invoice</p>
                   <p className="text-xs text-gray-500 mt-0.5">
@@ -728,11 +891,11 @@ function CustomerDetailPage() {
             </div>
 
             {visibilityRule === 'ASSIGNED' && user?.sfaEnabled && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="rounded-lg border border-brand-200 bg-brand-50 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-blue-900">Assigned Products</p>
-                    <p className="text-xs text-blue-600 mt-0.5">
+                    <p className="text-sm font-medium text-brand-900">Assigned Products</p>
+                    <p className="text-xs text-brand-600 mt-0.5">
                       {selectedIds.length === 0
                         ? 'No products assigned — salesperson will see no products'
                         : `${selectedIds.length} product${selectedIds.length === 1 ? '' : 's'} assigned`}
@@ -751,14 +914,14 @@ function CustomerDetailPage() {
                     {selectedIds.slice(0, 8).map(pid => {
                       const p = allProducts.find(x => x.id === pid);
                       return p ? (
-                        <span key={pid} className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                        <span key={pid} className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-800">
                           {p.name}
-                          <button type="button" onClick={() => toggleProduct(pid)} className="ml-0.5 text-blue-500 hover:text-blue-700">×</button>
+                          <button type="button" onClick={() => toggleProduct(pid)} className="ml-0.5 text-brand-500 hover:text-brand-700">×</button>
                         </span>
                       ) : null;
                     })}
                     {selectedIds.length > 8 && (
-                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-600">
+                      <span className="inline-flex items-center rounded-full bg-brand-100 px-2.5 py-0.5 text-xs text-brand-600">
                         +{selectedIds.length - 8} more
                       </span>
                     )}
@@ -804,7 +967,7 @@ function CustomerDetailPage() {
             <DataTable
               columns={[
                 { key: 'name', label: 'Name', render: (v, row) => (
-                  <Link href={`/customers/${row.id}`} className="text-blue-600 hover:underline">{v}</Link>
+                  <Link href={`/customers/${row.id}`} className="text-brand-600 hover:underline">{v}</Link>
                 ) },
                 { key: 'customerCode', label: 'Code' },
                 { key: 'status', label: 'Status', render: (v) => <StatusBadge status={v} /> },
@@ -873,7 +1036,7 @@ function CustomerDetailPage() {
                         <td className="px-3 py-2"><StatusBadge status={bill.creditStatus} /></td>
                         <td className="px-3 py-2 text-right">
                           {bill.creditStatus !== 'PAID' && (
-                            <button onClick={() => setPayBill(bill)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                            <button onClick={() => setPayBill(bill)} className="text-xs text-brand-600 hover:text-brand-800 font-medium">
                               Record Payment
                             </button>
                           )}
@@ -899,7 +1062,7 @@ function CustomerDetailPage() {
                     </div>
                   ))}
                 </div>
-                <a href={`/pos/credit`} className="mt-2 inline-block text-xs text-blue-600 hover:text-blue-800 font-medium">
+                <a href={`/pos/credit`} className="mt-2 inline-block text-xs text-brand-600 hover:text-brand-800 font-medium">
                   View all in Customer Credit →
                 </a>
               </div>
@@ -1064,6 +1227,27 @@ function CustomerDetailPage() {
                   </div>
                 </div>
 
+                {showPortalChannels && (
+                  <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+                    <PortalChannelPicker
+                      tenants={accessibleTenants}
+                      value={portalChannelSelection}
+                      onChange={setPortalChannels}
+                      ownChannelId={ownChannelId}
+                    />
+                    {portalChannelsDirty && (
+                      <div className="flex gap-2">
+                        <button type="button" onClick={handleSavePortalChannels} disabled={portalSaving} className="btn-primary">
+                          {portalSaving ? 'Saving…' : 'Save Channels'}
+                        </button>
+                        <button type="button" onClick={() => setPortalChannels(null)} className="btn-secondary">
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {resetMode && (
                   <ResetPasswordRow
                     value={newPassword}
@@ -1118,6 +1302,15 @@ function CustomerDetailPage() {
 
                 {/* Password row with show/hide + regenerate */}
                 <PasswordRow creds={creds} setCreds={setCreds} generatePassword={generatePassword} />
+
+                {showPortalChannels && (
+                  <PortalChannelPicker
+                    tenants={accessibleTenants}
+                    value={portalChannelSelection}
+                    onChange={setPortalChannels}
+                    ownChannelId={ownChannelId}
+                  />
+                )}
 
                 <div className="flex gap-2 pt-1">
                   {!isNew && (
@@ -1181,7 +1374,7 @@ function CustomerDetailPage() {
               </div>
               <div className="flex items-center justify-between px-5 py-2 border-b border-gray-100 bg-gray-50">
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-                  <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 text-brand-600" />
                   {allSelected ? 'Deselect all' : 'Select all'} ({filteredProducts.length})
                 </label>
                 {selectedIds.length > 0 && (
@@ -1195,8 +1388,8 @@ function CustomerDetailPage() {
                   filteredProducts.map(p => {
                     const checked = selectedIds.includes(p.id);
                     return (
-                      <label key={p.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-gray-50 ${checked ? 'bg-blue-50' : ''}`}>
-                        <input type="checkbox" checked={checked} onChange={() => toggleProduct(p.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 shrink-0" />
+                      <label key={p.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-gray-50 ${checked ? 'bg-brand-50' : ''}`}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleProduct(p.id)} className="h-4 w-4 rounded border-gray-300 text-brand-600 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
                           <p className="text-xs text-gray-500">
@@ -1225,6 +1418,53 @@ function CustomerDetailPage() {
         )}
       </div>
     </Layout>
+  );
+}
+
+// Adds the customer's own channel to a channel id list (the backend always includes it too).
+function withOwnChannel(ids, ownChannelId) {
+  return ownChannelId && !ids.includes(ownChannelId) ? [ownChannelId, ...ids] : ids;
+}
+
+// Which channels a customer portal login can order from. The customer app shows the products
+// of every selected channel together and splits a mixed cart into one order per channel.
+function PortalChannelPicker({ tenants, value, onChange, ownChannelId }) {
+  const allSelected = tenants.every(t => value.includes(t.id));
+  const toggle = (tid) => onChange(value.includes(tid) ? value.filter(v => v !== tid) : [...value, tid]);
+
+  return (
+    <div>
+      <label className="label">Channels this customer can order from</label>
+      <label className="flex items-center gap-2 text-sm font-medium text-gray-900 mb-2">
+        <input
+          type="checkbox"
+          checked={allSelected}
+          onChange={() => onChange(allSelected ? [] : tenants.map(t => t.id))}
+        />
+        All channels
+      </label>
+      <div className="grid grid-cols-2 gap-2 pl-6">
+        {tenants.map(t => {
+          const isOwn = t.id === ownChannelId;
+          return (
+            <label key={t.id} className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={isOwn || value.includes(t.id)}
+                disabled={isOwn}
+                onChange={() => toggle(t.id)}
+              />
+              {t.name}
+              {isOwn && <span className="text-xs text-gray-400">(customer&apos;s channel)</span>}
+            </label>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-xs text-gray-500">
+        The app shows products from all selected channels. A cart with products from several
+        channels is placed as one order per channel.
+      </p>
+    </div>
   );
 }
 

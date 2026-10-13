@@ -16,6 +16,8 @@ const STATUS_MAP = {
   PENDING:   'badge-amber',
   PROCESSED: 'badge-green',
   REJECTED:  'badge-red',
+  // Lead statuses
+  CONVERTED: 'badge-green',
   // User statuses
   ACTIVE:    'badge-green',
   INACTIVE:  'badge-gray',

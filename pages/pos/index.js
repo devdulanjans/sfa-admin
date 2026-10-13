@@ -316,7 +316,7 @@ function CashMovementModal({ balance, onSubmit, onClose, isPending }) {
             {['DEPOSIT', 'WITHDRAWAL'].map(t => (
               <button key={t} type="button" onClick={() => setType(t)}
                 className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition-colors ${
-                  type === t ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-blue-400'
+                  type === t ? 'border-brand-600 bg-brand-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-brand-400'
                 }`}>
                 {t === 'DEPOSIT' ? '⬇ Deposit' : '⬆ Withdrawal'}
               </button>
@@ -376,7 +376,7 @@ function DayEndModal({ session, onSubmit, onClose, isPending }) {
             <span>Opening Float</span><span className="tabular-nums text-gray-800">LKR {fmt(session.openingFloat)}</span>
           </div>
           <div className="flex justify-between font-semibold">
-            <span className="text-gray-600">Expected Cash</span><span className="tabular-nums text-blue-700">LKR {fmt(expected)}</span>
+            <span className="text-gray-600">Expected Cash</span><span className="tabular-nums text-brand-700">LKR {fmt(expected)}</span>
           </div>
         </div>
         <form onSubmit={submit} className="space-y-3">
@@ -388,12 +388,12 @@ function DayEndModal({ session, onSubmit, onClose, isPending }) {
           </div>
           {variance !== null && (
             <div className={`flex items-center justify-between rounded-lg border px-3 py-1.5 ${
-              variance === 0 ? 'border-green-200 bg-green-50' : variance > 0 ? 'border-blue-200 bg-blue-50' : 'border-red-200 bg-red-50'
+              variance === 0 ? 'border-green-200 bg-green-50' : variance > 0 ? 'border-brand-200 bg-brand-50' : 'border-red-200 bg-red-50'
             }`}>
-              <span className={`text-sm font-medium ${variance === 0 ? 'text-green-700' : variance > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+              <span className={`text-sm font-medium ${variance === 0 ? 'text-green-700' : variance > 0 ? 'text-brand-700' : 'text-red-700'}`}>
                 {variance === 0 ? 'Balanced' : variance > 0 ? 'Over' : 'Short'}
               </span>
-              <span className={`font-bold tabular-nums ${variance === 0 ? 'text-green-700' : variance > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+              <span className={`font-bold tabular-nums ${variance === 0 ? 'text-green-700' : variance > 0 ? 'text-brand-700' : 'text-red-700'}`}>
                 LKR {fmt(Math.abs(variance))}
               </span>
             </div>
@@ -477,7 +477,7 @@ function HeldBillsModal({ bills, onRecall, onDelete, onClose }) {
                 <div className="flex gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => onRecall(b.id)}
-                    className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
+                    className="flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors">
                     <RecallIcon /> Recall
                   </button>
                   <button
@@ -561,9 +561,9 @@ function ConfirmModal({ data, printCopies, onPrintCopiesChange, onClose, company
         </div>
         {/* Discount / savings — Sinhala label, highlighted */}
         {discountTotal > 0 && (
-          <div className="mx-5 mt-3 rounded-xl border-2 border-blue-300 bg-blue-50 px-4 py-2.5 text-center">
-            <p className="mb-0.5 text-sm font-bold text-blue-800">ඔබ ලැබූ ලාභය</p>
-            <p className="text-lg font-extrabold tabular-nums text-blue-700">LKR {fmt(discountTotal)}</p>
+          <div className="mx-5 mt-3 rounded-xl border-2 border-brand-300 bg-brand-50 px-4 py-2.5 text-center">
+            <p className="mb-0.5 text-sm font-bold text-brand-800">ඔබ ලැබූ ලාභය</p>
+            <p className="text-lg font-extrabold tabular-nums text-brand-700">LKR {fmt(discountTotal)}</p>
           </div>
         )}
         {/* Balance — BIG */}
@@ -590,7 +590,7 @@ function ConfirmModal({ data, printCopies, onPrintCopiesChange, onClose, company
             </div>
           </div>
           <button onClick={() => printReceipt(data, printCopies, companyProfile)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100">
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-100">
             <PrintIcon /> Print Receipt
           </button>
           <button onClick={onClose}
@@ -1345,7 +1345,7 @@ function PosPage() {
       )}
       {drawerLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
-          <SpinnerIcon className="h-8 w-8 animate-spin text-blue-600" />
+          <SpinnerIcon className="h-8 w-8 animate-spin text-brand-600" />
         </div>
       )}
       {!drawerLoading && drawerCheckFailed && (
@@ -1445,7 +1445,7 @@ function PosPage() {
                   autoComplete="off"
                   spellCheck={false}
                   className={`input w-full pl-9 pr-8 text-base font-medium ${
-                    selectedProd ? 'border-blue-300 bg-blue-50 text-blue-900' : ''
+                    selectedProd ? 'border-brand-300 bg-brand-50 text-brand-900' : ''
                   }`}
                 />
                 {query && (
@@ -1504,25 +1504,25 @@ function PosPage() {
               <button
                 onMouseDown={(e) => { e.preventDefault(); addToCart(); }}
                 disabled={!selectedProd || !effectivePricing}
-                className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30">
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-brand-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30">
                 <PlusIcon /> Add
-                <span className="hidden text-[10px] font-normal text-blue-300 sm:inline">↵</span>
+                <span className="hidden text-[10px] font-normal text-brand-300 sm:inline">↵</span>
               </button>
             </div>
 
             {selectedProd ? (
-              <div className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs text-blue-700">
+              <div className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-700">
                 <div className="flex items-center gap-2">
                   <span className="max-w-[10rem] truncate font-semibold">{selectedProd.name}</span>
-                  <span className="text-blue-300">·</span>
+                  <span className="text-brand-300">·</span>
                   {selectedProdPricing?.loading ? (
-                    <span className="flex items-center gap-1 text-blue-400">
+                    <span className="flex items-center gap-1 text-brand-400">
                       <SpinnerIcon className="h-3 w-3 animate-spin" /> pricing…
                     </span>
                   ) : (
                     <>
                       {entryHasSpecialPrice && (
-                        <span className="text-blue-300 line-through">LKR {fmt(selectedProd.defaultPrice || 0)}</span>
+                        <span className="text-brand-300 line-through">LKR {fmt(selectedProd.defaultPrice || 0)}</span>
                       )}
                       <span className="tabular-nums">LKR {fmt(entryUnitPrice)}</span>
                       <PriceSourceBadge item={{ priceSource: effectivePricing?.priceSource, promotionName: effectivePricing?.promotionName }} />
@@ -1531,19 +1531,19 @@ function PosPage() {
                       )}
                     </>
                   )}
-                  <span className="text-blue-300">×</span><span>{qty || 1}</span>
-                  <span className="text-blue-300">=</span>
+                  <span className="text-brand-300">×</span><span>{qty || 1}</span>
+                  <span className="text-brand-300">=</span>
                   <span className="font-bold tabular-nums">LKR {fmt(entryPreview)}</span>
                   {entryAvailableStock !== null && (
-                    <span className={`font-semibold ${entryAvailableStock <= 0 ? 'text-red-600' : entryAvailableStock <= 10 ? 'text-amber-600' : 'text-blue-400'}`}>
+                    <span className={`font-semibold ${entryAvailableStock <= 0 ? 'text-red-600' : entryAvailableStock <= 10 ? 'text-amber-600' : 'text-brand-400'}`}>
                       {entryAvailableStock <= 0 ? 'Out of stock' : `${Number(entryAvailableStock).toFixed(entryAvailableStock % 1 === 0 ? 0 : 2)} left`}
                     </span>
                   )}
-                  <span className="ml-auto whitespace-nowrap italic text-[10px] text-blue-400">Tab → discount · Enter to add</span>
+                  <span className="ml-auto whitespace-nowrap italic text-[10px] text-brand-400">Tab → discount · Enter to add</span>
                 </div>
                 {selectedProdPricing?.generalTiers?.length > 0 && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-blue-100 pt-2">
-                    <span className="text-xs font-bold uppercase tracking-wide text-blue-500">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-brand-100 pt-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-brand-500">
                       Batch pricing {selectedProdPricing.generalTiers.length > 1 ? '(tap to choose)' : ''}:
                     </span>
                     {selectedProdPricing.generalTiers.map(t => {
@@ -1593,13 +1593,13 @@ function PosPage() {
                     <button key={p.id} tabIndex={-1}
                       onMouseDown={(e) => { e.preventDefault(); selectProduct(p); }}
                       className={`flex w-full items-center gap-4 border-b border-gray-100 px-5 py-3 text-left transition-colors ${
-                        isActive ? 'border-l-2 border-l-blue-500 bg-blue-50' : 'hover:bg-white'
+                        isActive ? 'border-l-2 border-l-brand-500 bg-brand-50' : 'hover:bg-white'
                       }`}>
-                      <span className={`w-5 flex-shrink-0 text-xs font-mono ${isActive ? 'font-bold text-blue-600' : 'text-gray-300'}`}>
+                      <span className={`w-5 flex-shrink-0 text-xs font-mono ${isActive ? 'font-bold text-brand-600' : 'text-gray-300'}`}>
                         {isActive ? '▸' : String(i + 1).padStart(2, '0')}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className={`truncate font-medium ${isActive ? 'text-blue-900' : 'text-gray-800'}`}>{p.name}</p>
+                        <p className={`truncate font-medium ${isActive ? 'text-brand-900' : 'text-gray-800'}`}>{p.name}</p>
                         <p className="flex items-center gap-1.5">
                           {p.productCode && <span className="font-mono text-[11px] text-gray-400">{p.productCode}</span>}
                           {inventoryTrackingEnabled && (() => {
@@ -1615,7 +1615,7 @@ function PosPage() {
                         </p>
                       </div>
                       {p.unit?.name && <span className="flex-shrink-0 text-xs text-gray-400">{p.unit.name}</span>}
-                      <span className={`flex-shrink-0 text-sm font-bold tabular-nums ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
+                      <span className={`flex-shrink-0 text-sm font-bold tabular-nums ${isActive ? 'text-brand-700' : 'text-gray-700'}`}>
                         LKR {fmt(p.defaultPrice || 0)}
                       </span>
                     </button>
@@ -1670,16 +1670,16 @@ function PosPage() {
           {/* Customer */}
           <div className="relative flex-shrink-0 border-b border-gray-100 px-4 pb-3 pt-3">
             {customer ? (
-              <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
-                <span className="flex-1 text-sm font-medium text-blue-800">{customer.name}</span>
-                <span className="text-xs text-blue-500">{customer.customerCode}</span>
-                <button onClick={() => { setCustomer(null); setCustomerSearch(''); setCustomerPriceOverrides({}); }} className="ml-1 text-blue-400 hover:text-blue-700">
+              <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
+                <span className="flex-1 text-sm font-medium text-brand-800">{customer.name}</span>
+                <span className="text-xs text-brand-500">{customer.customerCode}</span>
+                <button onClick={() => { setCustomer(null); setCustomerSearch(''); setCustomerPriceOverrides({}); }} className="ml-1 text-brand-400 hover:text-brand-700">
                   <XIcon className="h-3.5 w-3.5" />
                 </button>
               </div>
             ) : showQuickAdd ? (
-              <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <p className="text-xs font-semibold text-blue-700">New Customer (POS)</p>
+              <div className="space-y-2 rounded-lg border border-brand-200 bg-brand-50 p-3">
+                <p className="text-xs font-semibold text-brand-700">New Customer (POS)</p>
                 <input className="input text-sm" placeholder="Name"
                   value={quickName} onChange={e => setQuickName(e.target.value)} autoFocus />
                 <input className="input text-sm" placeholder="Phone"
@@ -1713,9 +1713,9 @@ function PosPage() {
                           onMouseEnter={() => setCustomerSelIdx(i)}
                           onMouseDown={() => selectCustomer(c)}
                           className={`flex w-full justify-between border-b border-gray-50 px-3 py-2 text-left text-sm last:border-0 ${
-                            isActive ? 'bg-blue-50' : 'hover:bg-blue-50'
+                            isActive ? 'bg-brand-50' : 'hover:bg-brand-50'
                           }`}>
-                          <span className={`font-medium ${isActive ? 'text-blue-900' : 'text-gray-800'}`}>{c.name}</span>
+                          <span className={`font-medium ${isActive ? 'text-brand-900' : 'text-gray-800'}`}>{c.name}</span>
                           <span className="text-xs text-gray-400">{c.customerCode}</span>
                         </button>
                       );
@@ -1723,7 +1723,7 @@ function PosPage() {
                   </div>
                 )}
                 <button type="button" onMouseDown={(e) => { e.preventDefault(); setShowQuickAdd(true); }}
-                  className="mt-1 text-xs font-medium text-blue-600 hover:text-blue-800">
+                  className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-800">
                   + New Customer
                 </button>
               </div>
@@ -1771,7 +1771,7 @@ function PosPage() {
               )}
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span className="tabular-nums text-blue-700">LKR {fmt(totals.total)}</span>
+                <span className="tabular-nums text-brand-700">LKR {fmt(totals.total)}</span>
               </div>
             </div>
 
@@ -1781,8 +1781,8 @@ function PosPage() {
                   onClick={() => { setPaymentMethod(pm); setAmountTendered(''); setAmountPaidNow(''); setCardLast4(''); }}
                   className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition-colors ${
                     paymentMethod === pm
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-300 bg-white text-gray-600 hover:border-blue-400'
+                      ? 'border-brand-600 bg-brand-600 text-white'
+                      : 'border-gray-300 bg-white text-gray-600 hover:border-brand-400'
                   }`}>
                   {pm === 'CASH' ? '💵 Cash' : pm === 'CARD' ? '💳 Card' : '🧾 Credit'}
                 </button>

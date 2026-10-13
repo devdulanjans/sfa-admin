@@ -7,7 +7,7 @@ import { withAuth } from '../../lib/auth';
 import { reportApi } from '../../lib/api';
 import { formatAmount } from '../../lib/format';
 
-const BAR_COLOR = '#3b82f6';
+const BAR_COLOR = '#2e9690';
 
 function PerformancePage() {
   const [from, setFrom] = useState(() => {

@@ -6,6 +6,7 @@ import Layout from '../../components/Layout';
 import StatusBadge from '../../components/StatusBadge';
 import { withAuth, useAuth } from '../../lib/auth';
 import { useAccessibleTenants } from '../../lib/hooks';
+import ChannelMultiSelect, { resolveHomeChannel, defaultChannelIds, recordChannelIds } from '../../components/ChannelMultiSelect';
 import { productApi, categoryApi, unitApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { formatAmount } from '../../lib/format';
@@ -45,7 +46,7 @@ function GroupCheckboxList({ allItems, selectedIds, setSelectedIds, getLabel, ge
           className="input max-w-xs"
         />
         <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer shrink-0">
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
+          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 text-brand-600" />
           {allSelected ? 'Deselect all' : 'Select all'} ({filtered.length})
         </label>
       </div>
@@ -61,13 +62,13 @@ function GroupCheckboxList({ allItems, selectedIds, setSelectedIds, getLabel, ge
               return (
                 <label
                   key={item.id}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 ${checked ? 'bg-blue-50' : ''}`}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 ${checked ? 'bg-brand-50' : ''}`}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleOne(item.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 shrink-0"
+                    className="h-4 w-4 rounded border-gray-300 text-brand-600 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900 truncate">{getLabel(item)}</p>
@@ -91,9 +92,9 @@ function ProductDetailPage() {
   const { user } = useAuth();
   // A single-channel actor never needs to be asked — their one channel is implied
   // either way. Anyone managing more than one (SUPER_ADMIN sees every channel; an
-  // ADMIN over several channels sees just its own) picks which this product belongs to.
+  // ADMIN over several channels sees just its own) picks which channels it's available in.
   const { tenants: accessibleTenants, isLoading: tenantsLoading, needsPicker: needsChannelPicker } =
-    useAccessibleTenants({ enabled: isNew });
+    useAccessibleTenants();
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [initialGroupIds, setInitialGroupIds] = useState([]);
 
@@ -132,7 +133,7 @@ function ProductDetailPage() {
   const groupsDirty = selectedGroupIds.length !== initialGroupIds.length
     || selectedGroupIds.some(gid => !initialGroupIds.includes(gid));
 
-  const { register, handleSubmit, reset, watch, formState: { errors, isDirty } } = useForm({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isDirty } } = useForm({
     defaultValues: { taxRate: '15.00', maxDiscountAmount: '0.00' },
   });
 
@@ -149,9 +150,33 @@ function ProductDetailPage() {
         purchasePrice:     product.purchasePrice,
         taxRate:           product.taxRate,
         maxDiscountAmount: product.maxDiscountAmount,
+        tenantIds:         recordChannelIds(product),
       });
     }
   }, [product, reset]);
+
+  // "Available in channels" — on create, default to the ambient / first channel once loaded.
+  const channelSelection = watch('tenantIds');
+  const [channelError, setChannelError] = useState(false);
+  useEffect(() => {
+    if (isNew && needsChannelPicker && !channelSelection) {
+      setValue('tenantIds', defaultChannelIds(accessibleTenants, user?.activeTenant?.id));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNew, needsChannelPicker, accessibleTenants.length]);
+
+  function submitProduct(d) {
+    const body = { ...d };
+    if (needsChannelPicker) {
+      const ids = body.tenantIds ?? [];
+      if (ids.length === 0) { setChannelError(true); toast.error('Select at least one channel'); return; }
+      body.tenantIds = ids;
+      body.tenantId = resolveHomeChannel(ids, isNew ? undefined : product?.tenantId);
+    } else {
+      delete body.tenantIds;
+    }
+    mutation.mutate(body);
+  }
 
   const purchasePrice = parseFloat(watch('purchasePrice'));
   const defaultPrice  = parseFloat(watch('defaultPrice'));
@@ -202,21 +227,16 @@ function ProductDetailPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-4">
+        <form onSubmit={handleSubmit(submitProduct)} className="space-y-4">
           {needsChannelPicker && (
-            <div>
-              <label className="label">Channel *</label>
-              <select {...register('tenantId', { required: true })} className="input" disabled={tenantsLoading}>
-                <option value="">{tenantsLoading ? 'Loading channels…' : 'Select a channel…'}</option>
-                {accessibleTenants.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-              {errors.tenantId && <p className="text-red-500 text-xs mt-1">Required — which channel does this product belong to?</p>}
-              <p className="text-xs text-gray-500 mt-1">
-                You manage more than one channel — pick which one this product belongs to.
-              </p>
-            </div>
+            <ChannelMultiSelect
+              tenants={accessibleTenants}
+              isLoading={tenantsLoading}
+              value={channelSelection ?? []}
+              onChange={(ids) => { setChannelError(false); setValue('tenantIds', ids, { shouldDirty: true }); }}
+              homeId={resolveHomeChannel(channelSelection ?? [], isNew ? undefined : product?.tenantId)}
+              showError={channelError}
+            />
           )}
 
           <div className="grid grid-cols-2 gap-4">

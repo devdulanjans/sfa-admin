@@ -64,7 +64,7 @@ function SalesReportPage() {
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `LKR ${(v/1000).toFixed(0)}k`} />
               <Tooltip formatter={v => [`LKR ${formatAmount(v)}`, 'Revenue']} />
-              <Bar dataKey="revenue" fill="#3b82f6" radius={[3,3,0,0]} />
+              <Bar dataKey="revenue" fill="#2e9690" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

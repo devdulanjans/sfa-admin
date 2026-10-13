@@ -92,7 +92,7 @@ function CustomerCreditPage() {
     {
       key: 'actions', label: '',
       render: (_, row) => row.creditStatus !== 'PAID' ? (
-        <button onClick={() => setPayBill(row)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+        <button onClick={() => setPayBill(row)} className="text-xs text-brand-600 hover:text-brand-800 font-medium">
           Record Payment
         </button>
       ) : null,
@@ -132,9 +132,9 @@ function CustomerCreditPage() {
 
             <div className="relative">
               {customerId ? (
-                <div className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs">
-                  <span className="font-medium text-blue-800">{customerSearch}</span>
-                  <button onClick={() => { setCustomerId(''); setCustomerSearch(''); setPage(0); }} className="text-blue-400 hover:text-blue-700">✕</button>
+                <div className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-xs">
+                  <span className="font-medium text-brand-800">{customerSearch}</span>
+                  <button onClick={() => { setCustomerId(''); setCustomerSearch(''); setPage(0); }} className="text-brand-400 hover:text-brand-700">✕</button>
                 </div>
               ) : (
                 <input
@@ -151,7 +151,7 @@ function CustomerCreditPage() {
                   {customerResults.map(c => (
                     <button key={c.id} type="button"
                       onMouseDown={() => { setCustomerId(c.id); setCustomerSearch(c.name); setCustomerDropdown(false); setPage(0); }}
-                      className="flex w-full justify-between border-b border-gray-50 px-3 py-2 text-left text-sm last:border-0 hover:bg-blue-50">
+                      className="flex w-full justify-between border-b border-gray-50 px-3 py-2 text-left text-sm last:border-0 hover:bg-brand-50">
                       <span className="font-medium text-gray-800">{c.name}</span>
                       <span className="text-xs text-gray-400">{c.customerCode}</span>
                     </button>

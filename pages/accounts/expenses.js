@@ -22,7 +22,7 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_BADGE = {
-  PURCHASES:   'bg-blue-50 text-blue-700 border-blue-200',
+  PURCHASES:   'bg-brand-50 text-brand-700 border-brand-200',
   RENT:        'bg-purple-50 text-purple-700 border-purple-200',
   UTILITIES:   'bg-amber-50 text-amber-700 border-amber-200',
   SALARIES:    'bg-green-50 text-green-700 border-green-200',
@@ -144,7 +144,7 @@ function ExpensesPage() {
     {
       key: 'id', label: '', render: (_, row) => (
         <div className="flex items-center justify-end gap-2">
-          <button onClick={() => openEdit(row)} className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100">Edit</button>
+          <button onClick={() => openEdit(row)} className="rounded bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100">Edit</button>
           <button onClick={() => confirmDelete(row)} disabled={deleteMutation.isPending} className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100">Delete</button>
         </div>
       ),

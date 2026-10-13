@@ -152,7 +152,7 @@ function ConfirmModal({ data, printCopies, onPrintCopiesChange, onClose }) {
             </div>
           </div>
           <button onClick={() => printReceipt(data, printCopies)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100">
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-100">
             <PrintIcon /> Print Receipt
           </button>
           <button onClick={onClose}
@@ -386,7 +386,7 @@ export default function PosCalculatorModal() {
       <button
         onClick={() => setOpen(true)}
         title="Quick Calculator"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-1 ring-blue-700/20 transition hover:bg-blue-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg ring-1 ring-brand-700/20 transition hover:bg-brand-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
       >
         <CalcIcon />
         {lines.length > 0 && (
@@ -483,7 +483,7 @@ function CalcStep({
       <div className="flex-shrink-0 border-b border-gray-100 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CalcIcon className="h-5 w-5 text-blue-600" />
+            <CalcIcon className="h-5 w-5 text-brand-600" />
             <span className="text-base font-semibold text-gray-900">Quick Calculator</span>
           </div>
           <div className="flex items-center gap-1">
@@ -525,7 +525,7 @@ function CalcStep({
           {/* Amount — PRIMARY */}
           <div className="flex-1">
             <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-              Amount (LKR) <span className="text-blue-500 normal-case font-normal">← start here</span>
+              Amount (LKR) <span className="text-brand-500 normal-case font-normal">← start here</span>
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 select-none">Rs</span>
@@ -570,8 +570,8 @@ function CalcStep({
             </span>
             <button
               onMouseDown={(e) => { e.preventDefault(); onAddLine(); }}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 active:scale-95 transition-all">
-              <PlusIcon /> Add <span className="text-blue-300 text-[10px] font-normal">↵</span>
+              className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700 active:scale-95 transition-all">
+              <PlusIcon /> Add <span className="text-brand-300 text-[10px] font-normal">↵</span>
             </button>
           </div>
         </div>
@@ -658,7 +658,7 @@ function CalcStep({
             <button
               onMouseDown={(e) => { e.preventDefault(); onComplete(); }}
               disabled={lines.length === 0}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95">
+              className="flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95">
               Complete Sale →
             </button>
           </div>
@@ -701,7 +701,7 @@ function PayStep({
               <button key={m} onClick={() => setMethod(m)}
                 className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${
                   method === m
-                    ? 'bg-blue-600 text-white border-blue-600 shadow'
+                    ? 'bg-brand-600 text-white border-brand-600 shadow'
                     : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                 }`}>
                 {m === 'CASH' ? '💵 Cash' : m === 'CARD' ? '💳 Card' : '🧾 Credit'}
@@ -760,7 +760,7 @@ function PayStep({
       {/* Submit */}
       <div className="border-t border-gray-100 px-5 py-4">
         <button onClick={onSubmit} disabled={submitting}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow hover:bg-blue-700 disabled:opacity-50 transition-all">
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-3 text-sm font-bold text-white shadow hover:bg-brand-700 disabled:opacity-50 transition-all">
           {submitting
             ? <><SpinnerIcon className="h-4 w-4 animate-spin" /> Saving…</>
             : 'Record Sale'

@@ -128,7 +128,7 @@ function TenantsPage() {
           >
             Company Profile
           </button>
-          <button onClick={() => openEdit(row)} className="text-xs px-2 py-1 rounded font-medium bg-blue-50 text-blue-700 hover:bg-blue-100">
+          <button onClick={() => openEdit(row)} className="text-xs px-2 py-1 rounded font-medium bg-brand-50 text-brand-700 hover:bg-brand-100">
             Edit
           </button>
           <button onClick={() => setAssignTarget(row)} className="text-xs px-2 py-1 rounded font-medium bg-purple-50 text-purple-700 hover:bg-purple-100">
@@ -230,7 +230,7 @@ function TenantsPage() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">
-                Manage Users — <span className="text-blue-600">{assignTarget.name}</span>
+                Manage Users — <span className="text-brand-600">{assignTarget.name}</span>
               </h2>
               <button onClick={() => setAssignTarget(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
@@ -273,7 +273,7 @@ function TenantsPage() {
                       </div>
                       <button
                         onClick={() => assignMutation.mutate({ tenantId: assignTarget.id, userId: u.id })}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-xs text-brand-600 hover:text-brand-800 font-medium"
                         disabled={assignMutation.isPending}
                       >
                         Add

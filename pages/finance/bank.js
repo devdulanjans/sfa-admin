@@ -118,7 +118,7 @@ function BankManagementPage() {
 
   const columns = [
     { key: 'accountName', label: 'Account', render: (v, row) => (
-      <button className="text-blue-600 hover:underline" onClick={() => setDrilldown(row)}>{v}</button>
+      <button className="text-brand-600 hover:underline" onClick={() => setDrilldown(row)}>{v}</button>
     ) },
     { key: 'bankName', label: 'Bank', render: (v) => v || <span className="text-gray-400">—</span> },
     { key: 'accountNumber', label: 'Account #', render: (v) => v || <span className="text-gray-400">—</span> },

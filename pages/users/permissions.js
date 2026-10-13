@@ -24,7 +24,7 @@ function ModuleGroup({ mod, grantedKeys, onToggle }) {
           checked={allChecked}
           ref={el => { if (el) el.indeterminate = someChecked; }}
           onChange={toggleAll}
-          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+          className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
         />
         <span className="text-base leading-none">{mod.icon}</span>
         <div className="flex-1 min-w-0">
@@ -54,12 +54,12 @@ function ModuleGroup({ mod, grantedKeys, onToggle }) {
 
 function ModuleLeaf({ mod, checked, onToggle, indent }) {
   return (
-    <label className={`flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors ${indent ? 'pl-10' : 'border border-gray-200 rounded-xl'}`}>
+    <label className={`flex items-center gap-3 px-4 py-3 hover:bg-brand-50 cursor-pointer transition-colors ${indent ? 'pl-10' : 'border border-gray-200 rounded-xl'}`}>
       <input
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
       />
       <span className="text-base leading-none">{mod.icon}</span>
       <div className="flex-1 min-w-0">
@@ -75,12 +75,12 @@ function ModuleLeaf({ mod, checked, onToggle, indent }) {
 
 function ActionItem({ action, checked, onToggle }) {
   return (
-    <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors">
+    <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:bg-brand-50 cursor-pointer transition-colors">
       <input
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
       />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800">{action.label}</p>
@@ -172,7 +172,7 @@ function PermissionsPage() {
               placeholder="Search users..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div className="overflow-y-auto flex-1">
@@ -181,7 +181,7 @@ function PermissionsPage() {
                 key={u.id}
                 onClick={() => selectUser(u)}
                 className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
-                  selectedUser?.id === u.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''
+                  selectedUser?.id === u.id ? 'bg-brand-50 border-l-2 border-l-brand-500' : ''
                 }`}
               >
                 <p className="text-sm font-medium text-gray-900 truncate">{u.fullName || u.username}</p>
@@ -230,7 +230,7 @@ function PermissionsPage() {
                   <button
                     onClick={save}
                     disabled={saving || loadingPerms}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
                   >
                     {saving ? 'Saving...' : 'Save Permissions'}
                   </button>

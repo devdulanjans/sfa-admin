@@ -96,7 +96,7 @@ function NewJournalEntryModal({ accounts, onClose, onSubmit, isPending }) {
               </div>
             ))}
             <button type="button" onClick={() => append({ accountId: '', debit: '', credit: '', description: '' })}
-              className="text-xs font-medium text-blue-600 hover:text-blue-700">+ Add line</button>
+              className="text-xs font-medium text-brand-600 hover:text-brand-700">+ Add line</button>
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -208,7 +208,7 @@ function GeneralLedgerPage() {
   const accountColumns = [
     { key: 'accountCode', label: 'Code' },
     { key: 'accountName', label: 'Name', render: (v, row) => (
-      <button className="text-blue-600 hover:underline" onClick={() => setDrilldownAccount(row)}>{v}</button>
+      <button className="text-brand-600 hover:underline" onClick={() => setDrilldownAccount(row)}>{v}</button>
     ) },
     { key: 'accountType', label: 'Type' },
     { key: 'balance', label: 'Balance', render: (v) => <span className="font-semibold tabular-nums">{fmt(v)}</span> },
@@ -232,11 +232,11 @@ function GeneralLedgerPage() {
     <Layout title="General Ledger">
       <div className="mb-4 flex gap-2">
         <button onClick={() => setTab('accounts')}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'accounts' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'accounts' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
           Chart of Accounts
         </button>
         <button onClick={() => setTab('entries')}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'entries' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'entries' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
           Journal Entries
         </button>
       </div>

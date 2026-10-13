@@ -5,6 +5,9 @@ import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import ExportButton from '../../components/ExportButton';
+import BulkAssignChannelModal from '../../components/BulkAssignChannelModal';
+import { ChannelChips } from '../../components/ChannelMultiSelect';
+import { useAccessibleTenants } from '../../lib/hooks';
 import { withAuth, useAuth } from '../../lib/auth';
 import { customerApi } from '../../lib/api';
 import toast from 'react-hot-toast';
@@ -22,7 +25,7 @@ function formatLocation(v) {
   return stripped || '—';
 }
 
-function branchColumns(router, multiTenantEnabled) {
+function branchColumns(router, multiTenantEnabled, channelTenants = []) {
   return [
     { key: 'customerCode',     label: 'Code',     width: 100 },
     { key: 'name',             label: 'Name', render: (v, row) => (
@@ -31,10 +34,18 @@ function branchColumns(router, multiTenantEnabled) {
         {row.branchCount > 0 && (
           <button
             onClick={() => router.push(`/customers?parentId=${row.id}`)}
-            className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+            className="ml-2 inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 hover:bg-brand-100"
           >
             {row.branchCount} branch{row.branchCount === 1 ? '' : 'es'}
           </button>
+        )}
+        {row.suggestedRouteId && (
+          <span className="block mt-0.5">
+            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800"
+              title={row.suggestedByName ? `Suggested by ${row.suggestedByName}` : 'Suggested by a sales rep'}>
+              Suggested: {row.suggestedRouteName || 'route'}
+            </span>
+          </span>
         )}
       </>
     ) },
@@ -44,10 +55,8 @@ function branchColumns(router, multiTenantEnabled) {
     { key: 'categoryName',     label: 'Category', render: (v) => v ?? '—' },
     { key: 'taxType',          label: 'Tax Type' },
     ...(multiTenantEnabled ? [{
-      key: 'tenantName', label: 'Channel',
-      render: (v) => v
-        ? <span className="text-xs font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">{v}</span>
-        : <span className="text-gray-400">—</span>,
+      key: 'tenantName', label: 'Channels',
+      render: (_, row) => <ChannelChips row={row} tenants={channelTenants} />,
     }] : []),
     { key: 'status',           label: 'Status',   render: (v) => <StatusBadge status={v} /> },
     { key: 'actions',          label: '',         width: 140,
@@ -89,7 +98,7 @@ function RowActions({ row }) {
     <div className="flex items-center justify-end gap-2">
       <button
         onClick={() => router.push(`/customers/${row.id}`)}
-        className="text-blue-600 text-xs font-medium hover:text-blue-800"
+        className="text-brand-600 text-xs font-medium hover:text-brand-800"
       >
         Edit →
       </button>
@@ -248,10 +257,14 @@ function CustomersPage() {
   const [search, setSearch] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const multiTenantEnabled = user?.multiTenantEnabled ?? true;
 
   // Viewing a parent's branches (via the "N branches" pill) — a separate, scoped view
   // rather than the general list, so it only ever shows that parent's rows.
   const parentId = router.query.parentId;
+  const canBulkAssign = isAdmin && multiTenantEnabled && !parentId;
 
   const { data: parentCustomer } = useQuery({
     queryKey: ['customer', parentId],
@@ -268,17 +281,27 @@ function CustomersPage() {
     keepPreviousData: true,
   });
 
-  const columns = branchColumns(router, user?.multiTenantEnabled ?? true);
+  const { tenants: channelTenants } = useAccessibleTenants({ enabled: multiTenantEnabled });
+  const columns = branchColumns(router, multiTenantEnabled, channelTenants);
 
   return (
     <Layout title={parentId ? `Branches of ${parentCustomer?.name ?? '…'}` : 'Customers'}>
       {parentId && (
         <button
           onClick={() => router.push('/customers')}
-          className="mb-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+          className="mb-3 text-sm text-brand-600 hover:text-brand-800 font-medium"
         >
           ← All customers
         </button>
+      )}
+      {canBulkAssign && selectedIds.size > 0 && (
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5">
+          <p className="text-sm font-medium text-brand-800">{selectedIds.size} customer{selectedIds.size === 1 ? '' : 's'} selected</p>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={() => setSelectedIds(new Set())}>Clear</button>
+            <button className="btn-primary" onClick={() => setShowBulkAssign(true)}>Channels…</button>
+          </div>
+        </div>
       )}
       <DataTable
         columns={columns}
@@ -288,6 +311,9 @@ function CustomersPage() {
         currentPage={page}
         onPageChange={setPage}
         onSearch={(v) => { setSearch(v); setPage(0); }}
+        selectable={canBulkAssign}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
         actions={
           <>
             {!parentId && isAdmin && (
@@ -296,7 +322,7 @@ function CustomersPage() {
                   type="checkbox"
                   checked={includeDeleted}
                   onChange={(e) => { setIncludeDeleted(e.target.checked); setPage(0); }}
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"
                 />
                 Show deleted
               </label>
@@ -327,6 +353,16 @@ function CustomersPage() {
         <ImportCustomersModal
           onClose={() => setShowImport(false)}
           onImported={() => qc.invalidateQueries({ queryKey: ['customers'] })}
+        />
+      )}
+
+      {showBulkAssign && (
+        <BulkAssignChannelModal
+          count={selectedIds.size}
+          entityLabel="customer"
+          assignFn={(tenantIds, mode) => customerApi.bulkAssignTenant(Array.from(selectedIds), tenantIds, mode)}
+          onClose={() => setShowBulkAssign(false)}
+          onDone={() => { setSelectedIds(new Set()); qc.invalidateQueries({ queryKey: ['customers'] }); }}
         />
       )}
     </Layout>

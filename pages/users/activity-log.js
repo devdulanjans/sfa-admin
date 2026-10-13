@@ -79,7 +79,7 @@ function ActivityLogPage() {
           <select
             value={filters.userId}
             onChange={e => handleFilterChange('userId', e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="">All Users</option>
             {users.map(u => (
@@ -93,7 +93,7 @@ function ActivityLogPage() {
           <select
             value={filters.status}
             onChange={e => handleFilterChange('status', e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="">All</option>
             <option value="SUCCESS">Success</option>
@@ -107,7 +107,7 @@ function ActivityLogPage() {
           <select
             value={filters.action}
             onChange={e => handleFilterChange('action', e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="">All Actions</option>
             <option value="PAGE_ACCESS">Page Access</option>

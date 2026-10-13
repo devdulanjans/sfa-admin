@@ -32,12 +32,13 @@ const NAV = [
   {
     label: 'Sales Management',
     childKeys: [
-      'MOD_CUSTOMERS', 'MOD_PRODUCTS',
+      'MOD_CUSTOMERS', 'MOD_LEADS', 'MOD_PRODUCTS',
       'MOD_BATCH_PRICE', 'MOD_PROMOTIONS', 'MOD_CUSTOMER_GROUPS', 'MOD_PRODUCT_GROUPS',
       'MOD_ORDERS', 'MOD_INVOICES',
       'MOD_INV_STOCK', 'MOD_INV_MOVES',
       'MOD_RETURNS', 'MOD_DAMAGES',
       'MOD_SALES_TARGETS', 'MOD_TARGET_CALENDAR',
+      'MOD_ROUTES', 'MOD_ROUTE_ASSIGN', 'MOD_VISIT_NOTES', 'MOD_TRACKING',
       'MOD_DISTRIBUTORS',
     ],
     icon: (
@@ -51,6 +52,11 @@ const NAV = [
         href: '/customers',
         label: 'Customers',
         permKey: 'MOD_CUSTOMERS',
+      },
+      {
+        href: '/leads',
+        label: 'Leads',
+        permKey: 'MOD_LEADS',
       },
       {
         href: '/products',
@@ -101,6 +107,17 @@ const NAV = [
         children: [
           { href: '/sales-targets',          label: 'Targets',          permKey: 'MOD_SALES_TARGETS' },
           { href: '/sales-targets/calendar', label: 'Working Calendar', permKey: 'MOD_TARGET_CALENDAR' },
+        ],
+      },
+      {
+        label: 'Routes',
+        childKeys: ['MOD_ROUTES', 'MOD_ROUTE_ASSIGN', 'MOD_VISIT_NOTES', 'MOD_TRACKING'],
+        children: [
+          // /routes/assign and /routes/visit-notes are their own leaves — keep them from also lighting up "Routes".
+          { href: '/routes',             label: 'Routes',       permKey: 'MOD_ROUTES', excludes: ['/routes/assign', '/routes/visit-notes'] },
+          { href: '/routes/assign',      label: 'Assign Route', permKey: 'MOD_ROUTE_ASSIGN' },
+          { href: '/routes/visit-notes', label: 'Visit Notes',  permKey: 'MOD_VISIT_NOTES' },
+          { href: '/tracking',           label: 'Field Tracking', permKey: 'MOD_TRACKING' },
         ],
       },
       {
@@ -211,15 +228,17 @@ const NAV = [
     children: [
       { href: '/settings/company-profile', label: 'Company Profile',  permKey: 'MOD_SETTINGS_COMPANY_PROFILE' },
       { href: '/settings/general',         label: 'General',          permKey: 'MOD_SETTINGS_GENERAL' },
+      { href: '/settings/notifications',   label: 'Notifications',    permKey: 'MOD_SETTINGS_NOTIFICATIONS' },
       { href: '/settings/categories',      label: 'Categories',       permKey: 'MOD_SETTINGS_CATEGORIES' },
       { href: '/settings/units',           label: 'Units of Measure', permKey: 'MOD_SETTINGS_UNITS' },
-      { href: '/settings/reasons',         label: 'Return & Damage Reasons', permKey: 'MOD_SETTINGS_REASONS' },
+      { href: '/settings/reasons',         label: 'Reasons', permKey: 'MOD_SETTINGS_REASONS' },
     ],
   },
 ];
 
 function isActive(item, pathname) {
   if (!item.href) return false;
+  if (item.excludes?.some(p => pathname === p || pathname.startsWith(p + '/'))) return false;
   return item.exact
     ? pathname === item.href
     : pathname === item.href || pathname.startsWith(item.href + '/');
@@ -264,7 +283,8 @@ function collectOpenGroups(items, pathname, parentPath = '') {
 const SFA_MODULES = new Set([
   'MOD_ORDERS', 'MOD_INVOICES', 'MOD_INV_STOCK', 'MOD_INV_MOVES',
   'MOD_RETURNS', 'MOD_DAMAGES', 'MOD_RPT_SALES', 'MOD_RPT_PERF', 'MOD_RPT_MILEAGE',
-  'MOD_SALES_TARGETS', 'MOD_TARGET_CALENDAR',
+  'MOD_SALES_TARGETS', 'MOD_TARGET_CALENDAR', 'MOD_LEADS',
+  'MOD_ROUTES', 'MOD_ROUTE_ASSIGN', 'MOD_VISIT_NOTES', 'MOD_TRACKING',
 ]);
 const POS_MODULES = new Set([
   'MOD_POS_TERMINAL', 'MOD_POS_HISTORY', 'MOD_POS_CUSTOMERS', 'MOD_POS_CREDIT',
@@ -303,8 +323,8 @@ function NavNode({ item, path, pathname, openGroups, toggleGroup, onClose, depth
             ? 'gap-3 px-3 py-2.5 text-sm font-medium'
             : 'gap-2 px-3 py-2 text-sm',
           active
-            ? depth === 0 ? 'bg-blue-600 text-white shadow-sm' : 'bg-blue-600/90 text-white font-medium'
-            : depth === 0 ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+            ? depth === 0 ? 'bg-brand-600 text-white shadow-sm' : 'bg-brand-600/90 text-white font-medium'
+            : depth === 0 ? 'text-slate-300 hover:bg-brand-900 hover:text-white' : 'text-slate-400 hover:bg-brand-900 hover:text-white'
         )}
       >
         {depth === 0 ? (
@@ -331,14 +351,14 @@ function NavNode({ item, path, pathname, openGroups, toggleGroup, onClose, depth
             ? 'gap-3 px-3 py-2.5 text-sm font-medium'
             : 'gap-2 px-3 py-2 text-sm',
           groupActive && !open
-            ? 'text-blue-400 hover:bg-slate-800'
-            : (depth === 0 ? 'text-slate-300' : 'text-slate-400') + ' hover:bg-slate-800 hover:text-white'
+            ? 'text-brand-400 hover:bg-brand-900'
+            : (depth === 0 ? 'text-slate-300' : 'text-slate-400') + ' hover:bg-brand-900 hover:text-white'
         )}
       >
         {depth === 0 ? (
-          <span className={clsx('shrink-0', groupActive ? 'text-blue-400' : 'text-slate-400')}>{item.icon}</span>
+          <span className={clsx('shrink-0', groupActive ? 'text-brand-400' : 'text-slate-400')}>{item.icon}</span>
         ) : (
-          <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', groupActive ? 'bg-blue-400' : 'bg-slate-600')} />
+          <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', groupActive ? 'bg-brand-400' : 'bg-slate-600')} />
         )}
         <span className="flex-1">{item.label}</span>
         <svg
@@ -371,14 +391,12 @@ function NavNode({ item, path, pathname, openGroups, toggleGroup, onClose, depth
 
 function PlatformOwnerSidebar({ onClose, active }) {
   return (
-    <div className="flex h-full flex-col bg-slate-900 text-white">
+    <div className="flex h-full flex-col bg-brand-950 text-white">
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700/60">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-md overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="SFA System" className="w-full h-full object-contain" />
           </div>
           <div>
             <div className="text-sm font-bold leading-tight">SFA System</div>
@@ -393,7 +411,7 @@ function PlatformOwnerSidebar({ onClose, active }) {
           onClick={onClose}
           className={clsx(
             'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-            active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+            active ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-300 hover:bg-brand-900 hover:text-white'
           )}
         >
           License
@@ -447,15 +465,13 @@ export default function Sidebar({ onClose }) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-slate-900 text-white">
+    <div className="flex h-full flex-col bg-brand-950 text-white">
       {/* Logo */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700/60">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-md overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="SFA System" className="w-full h-full object-contain" />
           </div>
           <div>
             <div className="text-sm font-bold leading-tight">SFA System</div>

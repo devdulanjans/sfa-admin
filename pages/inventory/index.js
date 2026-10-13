@@ -57,6 +57,7 @@ function InventoryPage() {
   const [receiving, setReceiving] = useState(null);  // product row receiving a new batch
   const [recvQty, setRecvQty]     = useState('');
   const [recvCost, setRecvCost]   = useState('');
+  const [recvPrice, setRecvPrice] = useState('');
   const [recvDate, setRecvDate]   = useState(todayStr());
   const [recvNotes, setRecvNotes] = useState('');
 
@@ -106,6 +107,7 @@ function InventoryPage() {
     setReceiving(null);
     setRecvQty('');
     setRecvCost('');
+    setRecvPrice('');
     setRecvDate(todayStr());
     setRecvNotes('');
   };
@@ -117,12 +119,21 @@ function InventoryPage() {
     if (isNaN(cost) || cost < 0) { toast.error('Enter a valid unit cost'); return; }
     if (!recvDate) { toast.error('Received date is required'); return; }
 
+    // Optional — left blank, pricing is untouched entirely (matches today's behavior).
+    let sellingPrice;
+    if (recvPrice.trim() !== '') {
+      const price = parseFloat(recvPrice);
+      if (isNaN(price) || price < 0) { toast.error('Enter a valid selling price'); return; }
+      sellingPrice = price;
+    }
+
     receiveMutation.mutate({
       productId:    receiving.id,
       quantity:     qty,
       unitCost:     cost,
       receivedDate: recvDate,
       notes:        recvNotes,
+      sellingPrice,
     });
   };
 
@@ -165,7 +176,7 @@ function InventoryPage() {
           </button>
           <button
             onClick={() => setAdjusting(row)}
-            className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            className="text-xs text-brand-600 hover:text-brand-800 font-medium">
             Adjust
           </button>
         </div>
@@ -224,8 +235,8 @@ function InventoryPage() {
                       onClick={() => setAdjType(opt.value)}
                       className={`flex-1 text-sm py-1.5 rounded-lg border font-medium transition-colors
                         ${adjType === opt.value
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}>
+                          ? 'bg-brand-600 text-white border-brand-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-brand-400'}`}>
                       {opt.label}
                     </button>
                   ))}
@@ -319,6 +330,19 @@ function InventoryPage() {
                   onChange={e => setRecvCost(e.target.value)}
                   placeholder="0.00"
                 />
+              </div>
+              <div>
+                <label className="label">Selling Price (LKR) — optional</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  className="input"
+                  value={recvPrice}
+                  onChange={e => setRecvPrice(e.target.value)}
+                  placeholder="Leave blank to leave pricing unchanged"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  If set, becomes this product&apos;s selling price effective from the received date.
+                </p>
               </div>
               <div>
                 <label className="label">Received Date</label>

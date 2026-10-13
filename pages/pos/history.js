@@ -21,7 +21,7 @@ const COLUMNS = [
     render: (v) => (
       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border
         ${v === 'CASH'   ? 'bg-green-50 text-green-700 border-green-200' :
-          v === 'CARD'   ? 'bg-blue-50  text-blue-700  border-blue-200'  :
+          v === 'CARD'   ? 'bg-brand-50  text-brand-700  border-brand-200'  :
                            'bg-amber-50 text-amber-700 border-amber-200'}`}>
         {v}
       </span>
@@ -86,7 +86,7 @@ function PosHistoryPage() {
       render: (_, row) => (
         <button
           onClick={() => setDetail(row.id)}
-          className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+          className="text-xs text-brand-600 hover:text-brand-800 font-medium">
           View
         </button>
       ),
