@@ -20,7 +20,9 @@ const FIELD_LABELS = {
   'Type':           'Type',
   'Discount Value': 'Discount Value',
   'Max Free Units': 'Max Free Units',
-  'Min Order Qty':  'Min Order Qty',
+  'Min Order Qty':  'Unlock at Qty',
+  'Repeat Every':   'Repeat Every',
+  'Max Free Total': 'Max Free Total',
   'Start Date':     'Start Date',
   'End Date':       'End Date',
   'Active':         'Active',
@@ -306,6 +308,8 @@ function PromotionsPage() {
       discountValue: promo.discountValue,
       maxFreeCount:  promo.maxFreeCount ?? 1,
       minOrderQty:   promo.minOrderQty  ?? 1,
+      repeatEveryQty: promo.repeatEveryQty ?? '',
+      maxFreeTotal:   promo.maxFreeTotal   ?? '',
       startDate:     promo.startDate,
       endDate:       promo.endDate,
       isActive:      promo.isActive,
@@ -344,7 +348,9 @@ function PromotionsPage() {
       productGroupId:  selectedProductGroup?.id || undefined,
       freeProductId: isFreeProduct ? freeProduct.id : undefined,
       maxFreeCount:  isFreeProduct ? (formData.maxFreeCount || 1) : undefined,
-      minOrderQty:   isFreeProduct ? (formData.minOrderQty  || 1) : undefined,
+      minOrderQty:   formData.minOrderQty || 1,
+      repeatEveryQty: isFreeProduct ? (formData.repeatEveryQty || null) : null,
+      maxFreeTotal:   isFreeProduct ? (formData.maxFreeTotal   || null) : null,
     };
 
     if (editingPromotion) {
@@ -664,22 +670,38 @@ function PromotionsPage() {
                 </div>
               )}
 
-              {/* Max free count + Min order qty */}
+              {/* Unlock quantity applies to every promotion type */}
+              <div>
+                <label className="label">Unlock at Qty <span className="text-gray-400 font-normal ml-1">(total bought across this promotion's products)</span></label>
+                <input type="number" min="1" step="1"
+                  {...register('minOrderQty', { required: true, min: 1, valueAsNumber: true })}
+                  className="input" defaultValue={1} />
+                {errors.minOrderQty && <p className="text-xs text-red-500 mt-1">Must be at least 1</p>}
+              </div>
+
+              {/* Free-product reward */}
               {isFreeProduct && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="label">Max Free Units <span className="text-gray-400 font-normal ml-1">(per order)</span></label>
+                    <label className="label">Free Units <span className="text-gray-400 font-normal ml-1">(per reward)</span></label>
                     <input type="number" min="1" step="1"
                       {...register('maxFreeCount', { required: isFreeProduct, min: 1, valueAsNumber: true })}
                       className="input" defaultValue={1} />
                     {errors.maxFreeCount && <p className="text-xs text-red-500 mt-1">Must be at least 1</p>}
                   </div>
                   <div>
-                    <label className="label">Min Order Qty <span className="text-gray-400 font-normal ml-1">(to unlock)</span></label>
+                    <label className="label">Repeat Every <span className="text-gray-400 font-normal ml-1">(blank = once)</span></label>
                     <input type="number" min="1" step="1"
-                      {...register('minOrderQty', { required: isFreeProduct, min: 1, valueAsNumber: true })}
-                      className="input" defaultValue={1} />
-                    {errors.minOrderQty && <p className="text-xs text-red-500 mt-1">Must be at least 1</p>}
+                      {...register('repeatEveryQty', { min: 1, valueAsNumber: true })}
+                      className="input" />
+                    {errors.repeatEveryQty && <p className="text-xs text-red-500 mt-1">Must be at least 1</p>}
+                  </div>
+                  <div>
+                    <label className="label">Max Free Total <span className="text-gray-400 font-normal ml-1">(blank = no limit)</span></label>
+                    <input type="number" min="1" step="1"
+                      {...register('maxFreeTotal', { min: 1, valueAsNumber: true })}
+                      className="input" />
+                    {errors.maxFreeTotal && <p className="text-xs text-red-500 mt-1">Must be at least 1</p>}
                   </div>
                 </div>
               )}
