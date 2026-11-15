@@ -156,8 +156,14 @@ function UsersPage() {
   // ── Mutations ────────────────────────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: (body) => userApi.create(body),
-    onSuccess: () => {
-      toast.success('User created');
+    onSuccess: (res) => {
+      // 202: the email already belongs to an account (one person, many roles) — it was invited
+      // instead, and gets access once the person accepts.
+      if (res.status === 202) {
+        toast.success(res.data?.message ?? 'Invitation sent', { duration: 6000 });
+      } else {
+        toast.success('User created');
+      }
       qc.invalidateQueries({ queryKey: ['users'] });
       setShowForm(false);
       reset();

@@ -30,6 +30,18 @@ const NAV = [
     ),
   },
   {
+    // Not a system_modules key — only SUPER_ADMIN (who sees every key) gets this entry.
+    href: '/channel-requests',
+    label: 'Channel Requests',
+    permKey: 'MOD_CHANNEL_REQUESTS',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
     label: 'Sales Management',
     childKeys: [
       'MOD_CUSTOMERS', 'MOD_LEADS', 'MOD_PRODUCTS',
@@ -81,6 +93,12 @@ const NAV = [
       {
         href: '/invoices',
         label: 'Invoices',
+        permKey: 'MOD_INVOICES',
+      },
+      {
+        // Who owes what, overdue amounts, receiving part / balance payments (V120).
+        href: '/receivables',
+        label: 'Customer Balances',
         permKey: 'MOD_INVOICES',
       },
       {
@@ -295,7 +313,7 @@ const FINANCE_MODULES = new Set([
   'MOD_FIN_LEDGER', 'MOD_FIN_PAYABLE', 'MOD_FIN_RECEIVABLE', 'MOD_FIN_BANK',
   'MOD_FIN_TAX', 'MOD_FIN_ASSETS', 'MOD_FIN_PL', 'MOD_FIN_BS',
 ]);
-const MULTI_TENANT_MODULES = new Set(['MOD_TENANTS']);
+const MULTI_TENANT_MODULES = new Set(['MOD_TENANTS', 'MOD_CHANNEL_REQUESTS']);
 
 function packageAllowed(permKey, sfaEnabled, posEnabled, financeEnabled, multiTenantEnabled) {
   if (!permKey) return true;

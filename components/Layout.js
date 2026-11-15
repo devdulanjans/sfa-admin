@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useAuth } from '../lib/auth';
+import { useAuth, ADMIN_APP_ROLES, roleLabel } from '../lib/auth';
 import Sidebar from './Sidebar';
 import PosCalculatorModal from './PosCalculatorModal';
 import toast from 'react-hot-toast';
@@ -10,7 +10,7 @@ import clsx from 'clsx';
 const SIDEBAR_COLLAPSED_KEY = 'sidebarCollapsed';
 
 export default function Layout({ children, title, fullWidth = false }) {
-  const { user, logout, switchTenant } = useAuth();
+  const { user, logout, switchTenant, switchMembership } = useAuth();
   const [sidebarOpen, setSidebarOpen]           = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [exiting, setExiting]     = useState(false);
@@ -40,7 +40,9 @@ export default function Layout({ children, title, fullWidth = false }) {
   // needs a way to move between them too — SUPER_ADMIN's own switch is the banner above,
   // entered from the Channels page, since its "tenants" list is the whole platform rather
   // than a personal set of memberships.
-  const canSwitchChannels = user.role !== 'SUPER_ADMIN' && (user.tenants?.length ?? 0) > 1;
+  // One account, many roles: every admin-panel workspace (role in a business) of this account.
+  const adminWorkspaces = (user.memberships || []).filter(m => ADMIN_APP_ROLES.includes(m.role));
+  const canSwitchWorkspaces = user.role !== 'SUPER_ADMIN' && adminWorkspaces.length > 1;
 
   async function exitChannelView() {
     setExiting(true);
@@ -55,16 +57,18 @@ export default function Layout({ children, title, fullWidth = false }) {
     }
   }
 
-  async function handleChannelSwitch(e) {
-    const tenantId = e.target.value;
-    if (!tenantId || tenantId === user.activeTenant?.id) return;
+  async function handleWorkspaceSwitch(e) {
+    const membershipId = e.target.value;
+    if (!membershipId || membershipId === user.activeMembershipId) return;
+    if (membershipId === '__all') { router.push('/workspaces'); return; }
     setSwitching(true);
     try {
-      const target = user.tenants.find(t => t.id === tenantId);
-      await switchTenant(tenantId);
-      toast.success(`Switched to ${target?.name ?? 'channel'}`);
+      const target = adminWorkspaces.find(m => m.id === membershipId);
+      await switchMembership(membershipId);
+      toast.success(`Working as ${roleLabel(target?.role).toLowerCase()} at ${target?.tenantName ?? 'business'}`);
+      router.push('/');
     } catch (err) {
-      toast.error(err.response?.data?.detail ?? 'Failed to switch channel');
+      toast.error(err.response?.data?.detail ?? 'Failed to switch workspace');
     } finally {
       setSwitching(false);
     }
@@ -126,22 +130,31 @@ export default function Layout({ children, title, fullWidth = false }) {
 
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 hidden sm:block">{user.fullName || user.username}</span>
-            <span className="hidden sm:inline-flex items-center rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-800">
-              {user.role?.replace('_', ' ')}
-            </span>
-            {canSwitchChannels && (
+            {canSwitchWorkspaces ? (
               <select
-                value={user.activeTenant?.id ?? ''}
-                onChange={handleChannelSwitch}
+                value={user.activeMembershipId ?? ''}
+                onChange={handleWorkspaceSwitch}
                 disabled={switching}
                 className="text-xs font-medium rounded-full border border-amber-200 bg-amber-50 text-amber-800 pl-2 pr-6 py-0.5 disabled:opacity-50"
-                title="Switch channel"
+                title="Switch workspace"
               >
-                {!user.activeTenant && <option value="">Select a channel…</option>}
-                {user.tenants.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                {!user.activeMembershipId && <option value="">Choose a workspace…</option>}
+                {adminWorkspaces.map(m => (
+                  <option key={m.id} value={m.id}>{m.tenantName} · {roleLabel(m.role)}</option>
                 ))}
+                <option value="__all">All workspaces & invitations…</option>
               </select>
+            ) : (
+              <span className="hidden sm:inline-flex items-center rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-800">
+                {user.activeTenant && user.role !== 'SUPER_ADMIN' ? `${user.activeTenant.name} · ${roleLabel(user.role)}` : user.role?.replace('_', ' ')}
+              </span>
+            )}
+            {user.invitationCount > 0 && (
+              <Link href="/workspaces"
+                className="inline-flex items-center rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white hover:bg-amber-600"
+                title="Invitations waiting for you">
+                {user.invitationCount} invitation{user.invitationCount === 1 ? '' : 's'}
+              </Link>
             )}
             <Link
               href="/account/change-password"

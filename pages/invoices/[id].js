@@ -3,69 +3,14 @@ import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { withAuth } from '../../lib/auth';
-import { invoiceApi, bankAccountApi } from '../../lib/api';
+import { withAuth, useAuth } from '../../lib/auth';
+import { invoiceApi } from '../../lib/api';
 import { formatAmount } from '../../lib/format';
 import SendToCustomerModal from '../../components/SendToCustomerModal';
+import PaymentModal, { ReasonModal, methodLabel } from '../../components/PaymentModal';
+import { InvoiceStatus } from '../../components/StatusBadge';
 
-const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'CARD', 'OTHER'];
-
-function RecordPaymentModal({ invoice, bankAccounts, onClose, onSubmit, isPending }) {
-  const outstanding = invoice.total - (invoice.paidAmount || 0);
-  const [bankAccountId, setBankAccountId] = useState('');
-  const [amount, setAmount] = useState(outstanding);
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
-  const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
-  const [referenceNumber, setReferenceNumber] = useState('');
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}>
-      <div style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Record Payment</h2>
-        <p style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
-          {invoice.invoiceNumber} — outstanding {formatAmount(outstanding)}
-        </p>
-        <form onSubmit={(e) => { e.preventDefault(); onSubmit({ bankAccountId, amount, paymentDate, paymentMethod, referenceNumber }); }}>
-          <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Bank Account *</label>
-          <select required value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}
-            style={{ width: '100%', marginBottom: 12, padding: 8, borderRadius: 6, border: '1px solid #ccc' }}>
-            <option value="">Select bank account…</option>
-            {bankAccounts.map((b) => <option key={b.id} value={b.id}>{b.accountName}</option>)}
-          </select>
-
-          <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Amount *</label>
-          <input required type="number" step="0.01" min="0.01" max={outstanding} value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            style={{ width: '100%', marginBottom: 12, padding: 8, borderRadius: 6, border: '1px solid #ccc' }} />
-
-          <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Payment Date *</label>
-          <input required type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)}
-            style={{ width: '100%', marginBottom: 12, padding: 8, borderRadius: 6, border: '1px solid #ccc' }} />
-
-          <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Method</label>
-          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
-            style={{ width: '100%', marginBottom: 12, padding: 8, borderRadius: 6, border: '1px solid #ccc' }}>
-            {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-
-          <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Reference Number</label>
-          <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)}
-            style={{ width: '100%', marginBottom: 16, padding: 8, borderRadius: 6, border: '1px solid #ccc' }} />
-
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" disabled={isPending} style={{
-              flex: 1, padding: '8px 0', background: '#1976d2', color: '#fff', border: 'none', borderRadius: 6,
-              fontWeight: 600, cursor: isPending ? 'default' : 'pointer', opacity: isPending ? 0.6 : 1,
-            }}>{isPending ? 'Recording…' : 'Record Payment'}</button>
-            <button type="button" onClick={onClose} style={{
-              flex: 1, padding: '8px 0', background: '#eee', color: '#333', border: 'none', borderRadius: 6, fontWeight: 600,
-            }}>Cancel</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+const errText = (err, fallback) => err.response?.data?.detail ?? err.response?.data?.message ?? fallback;
 
 // A4 at 96dpi ≈ 794 x 1123px; we size in mm so print and screen agree exactly.
 const PRINT_CSS = `
@@ -97,6 +42,11 @@ function InvoiceDetailPage() {
   const [exportingSecondary, setExportingSecondary] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showSend, setShowSend] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
+  const [voiding, setVoiding] = useState(null);
+  const { hasRole } = useAuth();
+  // Owners (ADMIN) inherit SALES_MANAGER, as on the backend.
+  const canManage = hasRole('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'FINANCE_USER');
 
   const { data: invoice } = useQuery({
     queryKey: ['invoice-detail', id],
@@ -104,23 +54,47 @@ function InvoiceDetailPage() {
     enabled: !!id,
   });
 
-  const { data: bankAccounts = [] } = useQuery({
-    queryKey: ['bank-accounts'],
-    queryFn: () => bankAccountApi.list().then((r) => r.data),
-    enabled: showPayment,
+  const { data: payments = [] } = useQuery({
+    queryKey: ['invoice-payments', id],
+    queryFn: () => invoiceApi.payments(id).then((r) => r.data),
+    enabled: !!id && canManage,
   });
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['invoice-detail', id] });
+    qc.invalidateQueries({ queryKey: ['invoice-payments', id] });
+    qc.invalidateQueries({ queryKey: ['invoices'] });
+    qc.invalidateQueries({ queryKey: ['balances'] });
+  };
 
   const paymentMutation = useMutation({
-    mutationFn: (data) => invoiceApi.recordPayment(id, { ...data, amount: parseFloat(data.amount) }),
-    onSuccess: () => {
-      toast.success('Payment recorded');
-      qc.invalidateQueries({ queryKey: ['invoice-detail', id] });
+    mutationFn: (data) => invoiceApi.recordPayment(id, data),
+    onSuccess: (res) => {
+      toast.success(`Payment recorded — receipt ${res.data.receiptNumber}`);
+      refresh();
       setShowPayment(false);
     },
-    onError: (err) => toast.error(err.response?.data?.detail ?? err.response?.data?.message ?? 'Failed to record payment'),
+    onError: (err) => toast.error(errText(err, 'Failed to record payment')),
   });
 
-  const canRecordPayment = invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status);
+  const voidMutation = useMutation({
+    mutationFn: ({ paymentId, reason }) => invoiceApi.voidPayment(paymentId, reason),
+    onSuccess: () => { toast.success('Payment voided'); refresh(); setVoiding(null); },
+    onError: (err) => toast.error(errText(err, 'Could not void the payment')),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (reason) => invoiceApi.cancel(id, reason),
+    onSuccess: () => {
+      toast.success('Invoice cancelled — its items can be invoiced again from the order');
+      refresh();
+      setShowCancel(false);
+    },
+    onError: (err) => toast.error(errText(err, 'Could not cancel the invoice')),
+  });
+
+  const canRecordPayment = canManage && invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status);
+  const canCancel = canManage && invoice && invoice.status !== 'CANCELLED' && Number(invoice.paidAmount || 0) === 0;
 
   // Fetch the same dynamic, item-inclusive A4 PDF the backend generates for
   // print/download, so this page always matches what actually gets printed.
@@ -239,7 +213,92 @@ function InvoiceDetailPage() {
             border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontSize: 13,
           }}>💰 Record Payment</button>
         )}
+        {canCancel && (
+          <button onClick={() => setShowCancel(true)} style={{
+            padding: '6px 14px', background: '#c62828', color: '#fff',
+            border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+          }}>Cancel Invoice</button>
+        )}
       </div>
+
+      {invoice && (
+        <div className="no-print" style={{ maxWidth: '210mm', margin: '16px auto 0', padding: '0 8px' }}>
+          <div className="card p-4">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm">
+              <div>
+                <p className="text-xs text-gray-500">Status</p>
+                <InvoiceStatus inv={invoice} />
+              </div>
+              <Figure label="Total" value={invoice.total} />
+              <Figure label="Paid" value={invoice.paidAmount} tone="green" />
+              <Figure label="Balance" value={invoice.balance} tone={Number(invoice.balance) > 0 ? 'red' : undefined} />
+              <div>
+                <p className="text-xs text-gray-500">Due date</p>
+                <p className={`font-medium ${invoice.overdue ? 'text-red-700' : ''}`}>{invoice.dueDate || '—'}</p>
+              </div>
+              {invoice.order && (
+                <div>
+                  <p className="text-xs text-gray-500">Order</p>
+                  <Link href={`/orders/${invoice.order.id}`} className="font-mono text-brand-600 hover:underline">
+                    {invoice.order.orderNumber}
+                  </Link>
+                  {invoice.order.status === 'PARTIALLY_INVOICED' && (
+                    <span className="ml-2 badge-amber">part of order</span>
+                  )}
+                </div>
+              )}
+            </div>
+            {invoice.notes && <p className="mt-3 text-sm text-gray-600">Note: {invoice.notes}</p>}
+            {invoice.status === 'CANCELLED' && (
+              <p className="mt-3 text-sm text-red-700">
+                Cancelled{invoice.cancelReason ? ` — ${invoice.cancelReason}` : ''}. Its items went back to the order.
+              </p>
+            )}
+
+            {canManage && (
+              <div className="mt-4 border-t border-gray-100 pt-3">
+                <h3 className="mb-2 text-sm font-semibold text-gray-700">Payments</h3>
+                {payments.length === 0 ? (
+                  <p className="text-sm text-gray-500">No payments yet.</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-xs text-gray-500">
+                        <th className="py-1.5">Date</th>
+                        <th className="py-1.5">Receipt</th>
+                        <th className="py-1.5">Method</th>
+                        <th className="py-1.5">Reference</th>
+                        <th className="py-1.5">To</th>
+                        <th className="py-1.5 text-right">Amount</th>
+                        <th className="py-1.5"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payments.map((p) => (
+                        <tr key={p.id} className={`border-b border-gray-50 ${p.voided ? 'text-gray-400 line-through' : ''}`}>
+                          <td className="py-1.5">{p.paymentDate}</td>
+                          <td className="py-1.5 font-mono text-xs">{p.receiptNumber || '—'}</td>
+                          <td className="py-1.5">{methodLabel(p.paymentMethod)}</td>
+                          <td className="py-1.5">{p.referenceNumber || '—'}</td>
+                          <td className="py-1.5">{p.bankAccountName}</td>
+                          <td className="py-1.5 text-right tabular-nums">{formatAmount(p.amount)}</td>
+                          <td className="py-1.5 text-right no-underline">
+                            {p.voided ? (
+                              <span className="text-xs no-underline" title={p.voidReason}>void</span>
+                            ) : (
+                              <button className="text-xs text-red-600 hover:underline" onClick={() => setVoiding(p)}>Void</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {!pdfUrl && !pdfError && (
         <div style={{ textAlign: 'center', padding: 60, fontSize: 16, color: '#555' }}>
@@ -269,14 +328,45 @@ function InvoiceDetailPage() {
       )}
 
       {showPayment && invoice && (
-        <RecordPaymentModal
-          invoice={invoice}
-          bankAccounts={bankAccounts}
+        <PaymentModal
+          title="Record payment"
+          subtitle={`${invoice.invoiceNumber} — ${invoice.customer?.name ?? ''}`}
+          maxAmount={invoice.balance}
           isPending={paymentMutation.isPending}
           onClose={() => setShowPayment(false)}
           onSubmit={(d) => paymentMutation.mutate(d)}
         />
       )}
+      {showCancel && invoice && (
+        <ReasonModal
+          title={`Cancel ${invoice.invoiceNumber}?`}
+          message="The invoice is reversed in the accounts and its items go back to the order, ready to invoice again."
+          confirmLabel="Cancel invoice"
+          isPending={cancelMutation.isPending}
+          onClose={() => setShowCancel(false)}
+          onConfirm={(reason) => cancelMutation.mutate(reason)}
+        />
+      )}
+      {voiding && (
+        <ReasonModal
+          title={`Void payment of LKR ${formatAmount(voiding.amount)}?`}
+          message="Use this for a payment recorded by mistake. The amount becomes owed again; the record is kept, marked void."
+          confirmLabel="Void payment"
+          isPending={voidMutation.isPending}
+          onClose={() => setVoiding(null)}
+          onConfirm={(reason) => voidMutation.mutate({ paymentId: voiding.id, reason })}
+        />
+      )}
+    </div>
+  );
+}
+
+function Figure({ label, value, tone }) {
+  const color = tone === 'red' ? 'text-red-700' : tone === 'green' ? 'text-green-700' : 'text-gray-900';
+  return (
+    <div>
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className={`font-semibold tabular-nums ${color}`}>LKR {formatAmount(value)}</p>
     </div>
   );
 }

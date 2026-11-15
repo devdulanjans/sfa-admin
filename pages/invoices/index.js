@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import DataTable from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
+import { InvoiceStatus } from '../../components/StatusBadge';
 import ExportButton from '../../components/ExportButton';
 import { withAuth } from '../../lib/auth';
 import { invoiceApi, customerApi, dashboardApi } from '../../lib/api';
@@ -31,7 +31,18 @@ const EMPTY_DRAFT = {
   issuedTo:    '',
   dueFrom:     '',
   dueTo:       '',
+  paymentStatus: '',
 };
+
+const PAYMENT_STATUSES = [
+  { value: '',               label: 'All' },
+  { value: 'OUTSTANDING',    label: 'Not fully paid' },
+  { value: 'UNPAID',         label: 'Unpaid' },
+  { value: 'PARTIALLY_PAID', label: 'Partly paid' },
+  { value: 'OVERDUE',        label: 'Overdue' },
+  { value: 'PAID',           label: 'Paid' },
+  { value: 'CANCELLED',      label: 'Cancelled' },
+];
 
 function countActive(f) {
   return Object.values(f).filter((v) => v !== null && v !== '').length;
@@ -256,8 +267,8 @@ function FilterPanel({ onApply, allReps }) {
             </Field>
           </div>
 
-          {/* Row 2 — date ranges */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {/* Row 2 — date ranges + payment */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <DateRangeField
               label="Created Date"
               fromValue={draft.createdFrom} onFromChange={set('createdFrom')}
@@ -273,6 +284,11 @@ function FilterPanel({ onApply, allReps }) {
               fromValue={draft.dueFrom}     onFromChange={set('dueFrom')}
               toValue={draft.dueTo}         onToChange={set('dueTo')}
             />
+            <Field label="Payment">
+              <select value={draft.paymentStatus} onChange={set('paymentStatus')} className="input-base">
+                {PAYMENT_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </Field>
           </div>
 
           {/* Actions */}
@@ -372,6 +388,7 @@ function InvoicesPage() {
     ...(filters.issuedTo               && { issuedTo:    filters.issuedTo }),
     ...(filters.dueFrom                && { dueFrom:     filters.dueFrom }),
     ...(filters.dueTo                  && { dueTo:       filters.dueTo }),
+    ...(filters.paymentStatus          && { paymentStatus: filters.paymentStatus }),
   };
 
   const { data, isLoading } = useQuery({
@@ -398,8 +415,25 @@ function InvoicesPage() {
     { key: 'issuedDate',   label: 'Invoice Date', render: (v) => fmtDate(v) },
     { key: 'dueDate',      label: 'Due Date',     render: (v) => fmtDate(v) },
     { key: 'total',        label: 'Total (LKR)',  render: (v) => fmtLKR(v) },
+    { key: 'paidAmount',   label: 'Paid',         render: (v) => formatAmount(v) },
+    {
+      key: 'balance', label: 'Balance',
+      render: (v, row) => (
+        <span className={`font-medium tabular-nums ${row.overdue ? 'text-red-700' : Number(v) > 0 ? 'text-amber-700' : 'text-gray-400'}`}>
+          {formatAmount(v)}
+        </span>
+      ),
+    },
     { key: 'printCount',   label: 'Prints',       width: 70 },
-    { key: 'status',       label: 'Status',       render: (v) => <StatusBadge status={v} /> },
+    {
+      key: 'status', label: 'Status',
+      render: (_, row) => (
+        <div>
+          <InvoiceStatus inv={row} />
+          {row.orderStatus === 'PARTIALLY_INVOICED' && <div className="mt-0.5 text-[11px] text-amber-700">part of order</div>}
+        </div>
+      ),
+    },
     {
       key: 'actions', label: '', width: 130,
       render: (_, row) => (
@@ -452,6 +486,7 @@ function InvoicesPage() {
               ...(filters.issuedTo        && { issuedTo:    filters.issuedTo }),
               ...(filters.dueFrom         && { dueFrom:     filters.dueFrom }),
               ...(filters.dueTo           && { dueTo:       filters.dueTo }),
+              ...(filters.paymentStatus   && { paymentStatus: filters.paymentStatus }),
             })}
             detailedExportFn={() => invoiceApi.exportDetailsBulk({
               ...(filters.invoiceNo       && { invoiceNo:   filters.invoiceNo }),

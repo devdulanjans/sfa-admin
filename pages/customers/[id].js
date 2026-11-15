@@ -18,6 +18,92 @@ import { formatAmount } from '../../lib/format';
 
 const LocationPicker = dynamic(() => import('../../components/LocationPicker'), { ssr: false });
 
+const REASON_TEXT = { PHONE: 'Same phone', TAX: 'Same BR / VAT no.', NEARBY: 'Nearby, similar name' };
+
+// While adding a customer: is this shop already registered on the platform by another business?
+// Shows shared shop profiles only (never another business's terms). "Use this shop" links the
+// new customer account to it instead of creating a duplicate shop.
+function ShopMatches({ fields, linkedShop, onLink, onUnlink }) {
+  const [matches, setMatches] = useState([]);
+  const [dismissed, setDismissed] = useState([]);
+  const { name, phone, whatsappNumber, taxNumber, latitude, longitude } = fields;
+
+  useEffect(() => {
+    const digits = (s) => (s || '').replace(/\D/g, '');
+    const searchable = digits(phone).length >= 9 || digits(whatsappNumber).length >= 9
+      || (taxNumber || '').replace(/\W/g, '').length >= 5
+      || (latitude != null && longitude != null && (name || '').trim().length >= 3);
+    if (!searchable || linkedShop) { setMatches([]); return undefined; }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      customerApi.shopMatches({
+        name: name || undefined, phone: phone || undefined, whatsapp: whatsappNumber || undefined,
+        taxNumber: taxNumber || undefined, latitude: latitude ?? undefined, longitude: longitude ?? undefined,
+      }).then((r) => { if (!cancelled) setMatches(r.data || []); })
+        .catch(() => { if (!cancelled) setMatches([]); });
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [name, phone, whatsappNumber, taxNumber, latitude, longitude, linkedShop]);
+
+  if (linkedShop) {
+    return (
+      <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div className="flex items-start justify-between gap-3">
+          <p>
+            Adding <strong>{linkedShop.name}</strong> as your customer — it&apos;s already registered on the platform.
+            Your code, credit terms, balance and prices stay private to your business.
+          </p>
+          <button type="button" onClick={onUnlink} className="shrink-0 text-xs font-medium text-green-700 hover:underline">
+            Not this shop
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const shown = matches.filter((m) => !dismissed.includes(m.shopId));
+  if (!shown.length) return null;
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <p className="text-sm font-semibold text-amber-900">Already registered? {shown.length === 1 ? 'This shop' : 'These shops'} may be the same one</p>
+      <p className="mt-0.5 text-xs text-amber-800">Link it instead of creating a duplicate. Other businesses never see your account with it.</p>
+      <ul className="mt-3 space-y-2">
+        {shown.map((m) => (
+          <li key={m.shopId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white px-3 py-2.5 ring-1 ring-amber-100">
+            <div className="min-w-0">
+              <p className="font-medium text-gray-900">{m.name}</p>
+              <p className="text-xs text-gray-500">
+                {[m.address, m.area].filter(Boolean).join(' · ') || 'No address'}
+                {m.phone ? ` · ${m.phone}` : ''}
+                {m.distanceMeters != null ? ` · ${m.distanceMeters} m away` : ''}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {m.reasons.map((r) => (
+                  <span key={r} className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">{REASON_TEXT[r] || r}</span>
+                ))}
+              </div>
+            </div>
+            {m.existingCustomerId ? (
+              <Link href={`/customers/${m.existingCustomerId}`} className="text-xs font-medium text-brand-700 hover:underline">
+                Already your customer ({m.existingCustomerCode}) →
+              </Link>
+            ) : (
+              <div className="flex gap-2">
+                <button type="button" onClick={() => onLink(m)} className="rounded bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700">
+                  Use this shop
+                </button>
+                <button type="button" onClick={() => setDismissed((d) => [...d, m.shopId])} className="rounded bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200">
+                  Different shop
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // Debounced async-search combobox — same pattern already used in pages/invoices/index.js
 // and pages/reports/mileage.js (this codebase duplicates it per-page rather than sharing
 // a component). value/onChange use {value, label} option shape.
@@ -288,6 +374,20 @@ function CustomerDetailPage() {
   const [watchedCode, watchedName, watchedEmail, visibilityRule] =
     watch(['customerCode', 'name', 'email', 'visibilityRule']);
 
+  // New customer only: the already-registered shop this account is for (see ShopMatches).
+  const [linkedShop, setLinkedShop] = useState(null);
+  const [mPhone, mWhatsapp, mTax, mLat, mLng] = watch(['phone', 'whatsappNumber', 'taxNumber', 'latitude', 'longitude']);
+  function linkShop(m) {
+    setLinkedShop(m);
+    // Pre-fill only what the user left empty — never overwrite what they typed.
+    const fill = { phone: m.phone, location: m.address, placeOfSupplier: m.area };
+    Object.entries(fill).forEach(([k, v]) => { if (v && !watch(k)) setValue(k, v, { shouldDirty: true }); });
+    if (watch('latitude') == null && m.latitude != null) {
+      setValue('latitude', m.latitude, { shouldDirty: true });
+      setValue('longitude', m.longitude, { shouldDirty: true });
+    }
+  }
+
   useEffect(() => {
     if (customer) {
       const data = { ...customer };
@@ -325,6 +425,7 @@ function CustomerDetailPage() {
     } else {
       delete body.tenantIds;
     }
+    if (isNew && linkedShop) body.shopId = linkedShop.shopId;
     mutation.mutate(body);
   }
 
@@ -388,7 +489,8 @@ function CustomerDetailPage() {
       // If credentials were filled in, create the portal account now that we have the customer ID
       if (isNew && creds.username.trim() && creds.password.length >= 8 && creds.password === creds.confirm && customerRole) {
         try {
-          await userApi.create({
+          // An email that already has an account is invited instead (202) — see Users page.
+          const portalRes = await userApi.create({
             username:      creds.username.trim(),
             email:         creds.email.trim() || res.data.email || '',
             fullName:      res.data.name,
@@ -399,7 +501,9 @@ function CustomerDetailPage() {
             distributorIds: [],
             customerIds:    [],
           });
-          toast.success('Customer created with portal account');
+          toast.success(portalRes.status === 202
+            ? 'Customer created. That email already has an account, so it was invited to order for this customer.'
+            : 'Customer created with portal account');
         } catch (err) {
           toast.success('Customer created');
           toast.error('Portal account failed: ' + (err.response?.data?.message ?? err.response?.data?.detail ?? 'unknown error'));
@@ -748,6 +852,14 @@ function CustomerDetailPage() {
             <p className="text-xs text-gray-400 -mt-2">
               Order and invoice details are sent to this email / WhatsApp number when notifications are enabled for the channel in Settings → Notifications.
             </p>
+            {isNew && (
+              <ShopMatches
+                fields={{ name: watchedName, phone: mPhone, whatsappNumber: mWhatsapp, taxNumber: mTax, latitude: mLat, longitude: mLng }}
+                linkedShop={linkedShop}
+                onLink={linkShop}
+                onUnlink={() => setLinkedShop(null)}
+              />
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Location</label>

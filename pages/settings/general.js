@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '../../components/Layout';
-import { withAuth } from '../../lib/auth';
+import { withAuth, useAuth } from '../../lib/auth';
 import { settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
@@ -85,7 +85,7 @@ const NUMBER_SETTING_META = {
   },
 };
 
-function NumberSettingRow({ setting, meta, onSave, isPending }) {
+function NumberSettingRow({ setting, meta, onSave, isPending, scope }) {
   const [value, setValue] = useState(setting.value);
   useEffect(() => { setValue(setting.value); }, [setting.value]);
 
@@ -99,6 +99,7 @@ function NumberSettingRow({ setting, meta, onSave, isPending }) {
         {setting.updatedAt && (
           <p className="mt-1 text-xs text-gray-400">Last changed: {new Date(setting.updatedAt).toLocaleString()}</p>
         )}
+        {scope}
       </div>
       <div className="flex flex-shrink-0 items-center gap-2">
         <input
@@ -119,22 +120,53 @@ function NumberSettingRow({ setting, meta, onSave, isPending }) {
   );
 }
 
+function Scope({ setting, canReset, onReset }) {
+  if (!setting.channelValue) return null;
+  return (
+    <p className="mt-1 text-xs text-brand-700">
+      Set for this channel (default: {setting.defaultValue})
+      {canReset && (
+        <button onClick={onReset} className="ml-2 text-gray-500 underline hover:text-gray-700">Use default</button>
+      )}
+    </p>
+  );
+}
+
 function GeneralSettingsPage() {
   const qc = useQueryClient();
+  const { user, hasRole } = useAuth();
+  const canEdit = hasRole('SUPER_ADMIN', 'ADMIN');
+  // SUPER_ADMIN outside any channel picks which channel to edit; blank = platform defaults.
+  const platformView = !user?.activeTenant && hasRole('SUPER_ADMIN');
+  const [pickedTenant, setPickedTenant] = useState('');
+  const tenantId = platformView ? pickedTenant : '';
+  const inChannel = !!user?.activeTenant || !!tenantId;
+  const channelName = user?.activeTenant?.name
+    ?? (user?.tenants ?? []).find(t => t.id === tenantId)?.name;
 
   const { data: settings, isLoading, isError, error } = useQuery({
-    queryKey: ['settings'],
-    queryFn:  () => settingsApi.list().then(r => r.data),
+    queryKey: ['settings', tenantId],
+    queryFn:  () => settingsApi.list(tenantId || undefined).then(r => r.data),
   });
 
+  const onError = (err) => toast.error(err.response?.data?.detail ?? err.response?.data?.message ?? 'Failed to save setting');
   const updateMutation = useMutation({
-    mutationFn: ({ key, value }) => settingsApi.update(key, value),
+    mutationFn: ({ key, value }) => settingsApi.update(key, value, tenantId || undefined),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['settings'] });
       toast.success('Setting saved');
     },
-    onError: (err) => toast.error(err.response?.data?.detail ?? 'Failed to save setting'),
+    onError,
   });
+  const resetMutation = useMutation({
+    mutationFn: (key) => settingsApi.reset(key, tenantId || undefined),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['settings'] });
+      toast.success('Now using the platform default');
+    },
+    onError,
+  });
+  const busy = updateMutation.isPending || resetMutation.isPending || !canEdit;
 
   function toggle(setting) {
     const next = setting.value === 'true' ? 'false' : 'true';
@@ -147,8 +179,20 @@ function GeneralSettingsPage() {
   return (
     <Layout title="General Settings">
       <div className="max-w-2xl space-y-4">
+        {platformView && (
+          <div className="card p-4">
+            <label className="label">Channel</label>
+            <select className="input" value={pickedTenant} onChange={e => setPickedTenant(e.target.value)}>
+              <option value="">Platform defaults (all channels that haven't changed a setting)</option>
+              {(user?.tenants ?? []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        )}
         <p className="text-sm text-gray-500">
-          System-wide behaviour switches. Changes take effect immediately for all new operations.
+          {inChannel
+            ? <>Settings for <span className="font-medium text-gray-700">{channelName ?? 'this channel'}</span>. Changes apply to this channel only and take effect immediately.</>
+            : 'Platform defaults. A channel uses these until it changes a setting for itself.'}
+          {!canEdit && ' Only the channel owner can change them.'}
         </p>
 
         {isLoading ? (
@@ -167,8 +211,9 @@ function GeneralSettingsPage() {
                 key={setting.key}
                 setting={setting}
                 meta={NUMBER_SETTING_META[setting.key]}
-                isPending={updateMutation.isPending}
+                isPending={busy}
                 onSave={(value) => updateMutation.mutate({ key: setting.key, value })}
+                scope={<Scope setting={setting} canReset={canEdit} onReset={() => resetMutation.mutate(setting.key)} />}
               />
             ))}
             {booleanSettings.map(setting => {
@@ -184,10 +229,11 @@ function GeneralSettingsPage() {
                         Last changed: {new Date(setting.updatedAt).toLocaleString()}
                       </p>
                     )}
+                    <Scope setting={setting} canReset={canEdit} onReset={() => resetMutation.mutate(setting.key)} />
                   </div>
                   <button
                     onClick={() => toggle(setting)}
-                    disabled={updateMutation.isPending}
+                    disabled={busy}
                     className={[
                       'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent',
                       'transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
