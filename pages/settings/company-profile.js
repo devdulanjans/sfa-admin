@@ -92,7 +92,7 @@ function CompanyProfilePage() {
           <div className="flex items-center gap-4">
             {profile?.logoUrl ? (
               <img
-                src={`${profile.logoUrl}?v=${logoCacheBust}`}
+                src={`${profile.logoUrl}${profile.logoUrl.includes('?') ? '&' : '?'}v=${logoCacheBust}`}
                 alt="Company logo"
                 className="h-16 w-16 rounded-lg border border-gray-200 object-contain p-1"
               />

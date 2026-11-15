@@ -6,6 +6,7 @@ import Layout from '../../components/Layout';
 import StatusBadge from '../../components/StatusBadge';
 import { withAuth, useAuth } from '../../lib/auth';
 import { useAccessibleTenants } from '../../lib/hooks';
+import ProductImageField from '../../components/ProductImageField';
 import ChannelMultiSelect, { resolveHomeChannel, defaultChannelIds, recordChannelIds } from '../../components/ChannelMultiSelect';
 import { productApi, categoryApi, unitApi, productGroupApi } from '../../lib/api';
 import toast from 'react-hot-toast';
@@ -97,12 +98,27 @@ function ProductDetailPage() {
     useAccessibleTenants();
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [initialGroupIds, setInitialGroupIds] = useState([]);
+  // Website picture: picked file / removal waiting for Save.
+  const [imageFile, setImageFile] = useState(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const [imageUrl, setImageUrl] = useState(null);
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', id],
     queryFn: () => productApi.get(id).then(r => r.data),
     enabled: !!id && !isNew,
   });
+
+  // The saved picture, fetched with the login token (an <img> tag can't send it).
+  useEffect(() => {
+    if (isNew || !id || !product?.imageUpdatedAt) { setImageUrl(null); return undefined; }
+    let url = null;
+    let cancelled = false;
+    productApi.imageBlob(id)
+      .then((r) => { if (!cancelled) { url = URL.createObjectURL(r.data); setImageUrl(url); } })
+      .catch(() => { if (!cancelled) setImageUrl(null); });
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+  }, [id, isNew, product?.imageUpdatedAt]);
 
   const { data: categories } = useQuery({
     queryKey: ['product-categories'],
@@ -190,10 +206,19 @@ function ProductDetailPage() {
         ? await productApi.create(body)
         : await productApi.update(id, body);
       await productGroupApi.setForProduct(res.data.id, selectedGroupIds);
+      // The picture goes up after the product is saved; a failure here doesn't undo the save.
+      try {
+        if (imageFile) await productApi.uploadImage(res.data.id, imageFile);
+        else if (imageRemoved && product?.imageUpdatedAt) await productApi.removeImage(res.data.id);
+      } catch (err) {
+        toast.error(err.response?.data?.detail ?? 'The product was saved, but the picture could not be uploaded');
+      }
       return res;
     },
     onSuccess: (res) => {
       toast.success(isNew ? 'Product created' : 'Product updated');
+      setImageFile(null);
+      setImageRemoved(false);
       qc.invalidateQueries({ queryKey: ['products'] });
       qc.invalidateQueries({ queryKey: ['product-groups'] });
       if (isNew) router.push(`/products/${res.data.id}`);
@@ -228,6 +253,14 @@ function ProductDetailPage() {
         </div>
 
         <form onSubmit={handleSubmit(submitProduct)} className="space-y-4">
+          <ProductImageField
+            currentUrl={imageUrl}
+            file={imageFile}
+            removed={imageRemoved}
+            onPick={(f) => { setImageFile(f); if (f) setImageRemoved(false); }}
+            onRemove={() => setImageRemoved(true)}
+            onUndo={() => setImageRemoved(false)}
+          />
           {needsChannelPicker && (
             <ChannelMultiSelect
               tenants={accessibleTenants}
@@ -353,7 +386,7 @@ function ProductDetailPage() {
 
           <div className="flex gap-3 pt-2">
             <button type="submit" className="btn-primary"
-              disabled={mutation.isPending || (!isNew && !isDirty && !groupsDirty)}>
+              disabled={mutation.isPending || (!isNew && !isDirty && !groupsDirty && !imageFile && !imageRemoved)}>
               {mutation.isPending ? 'Saving…' : isNew ? 'Create Product' : 'Save Changes'}
             </button>
             <button type="button" className="btn-secondary" onClick={() => router.back()}>

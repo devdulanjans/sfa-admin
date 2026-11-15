@@ -102,6 +102,12 @@ const NAV = [
         permKey: 'MOD_INVOICES',
       },
       {
+        // Payments reps collected on visits, for checking against the cash handed in (V122).
+        href: '/collections',
+        label: 'Rep Collections',
+        permKey: 'MOD_INVOICES',
+      },
+      {
         label: 'Inventory',
         childKeys: ['MOD_INV_STOCK', 'MOD_INV_MOVES'],
         children: [

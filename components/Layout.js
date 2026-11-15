@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth, ADMIN_APP_ROLES, roleLabel } from '../lib/auth';
 import Sidebar from './Sidebar';
+import NotificationBell from './NotificationBell';
 import PosCalculatorModal from './PosCalculatorModal';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -156,6 +157,7 @@ export default function Layout({ children, title, fullWidth = false }) {
                 {user.invitationCount} invitation{user.invitationCount === 1 ? '' : 's'}
               </Link>
             )}
+            {['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'FINANCE_USER'].includes(user.role) && <NotificationBell />}
             <Link
               href="/account/change-password"
               className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
